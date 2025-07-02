@@ -1,0 +1,452 @@
+﻿@page "/customers"
+@using TeknikServisApp.Services
+@using TeknikServisApp.Data.Models
+@using TeknikServisApp.Enums
+@using Syncfusion.Blazor.Grids
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.Buttons
+@inject CustomerService CustomerService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Müşteriler - Teknik Servis</PageTitle>
+
+<div class="customers-container">
+    
+    @* Sayfa başlığı ve aksiyon butonları *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="page-title">
+                        <i class="fas fa-building me-3 text-primary"></i>
+                        Müşteri Yönetimi
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Toplam @totalRecords müşteri • @activeCustomers aktif
+                    </p>
+                </div>
+                <div class="d-flex gap-2">
+                    @if (AuthService.IsSupervisorOrAdmin)
+                    {
+                        <button class="btn btn-primary" @onclick="CreateNewCustomer">
+                            <i class="fas fa-plus me-2"></i>
+                            Yeni Müşteri
+                        </button>
+                    }
+                    <button class="btn btn-outline-secondary" @onclick="RefreshData">
+                        <i class="fas fa-sync-alt me-2"></i>
+                        Yenile
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Filtreleme ve arama araçları *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <div class="row g-3">
+                        <div class="col-lg-4 col-md-6">
+                            <label class="form-label">Arama</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="fas fa-search"></i>
+                                </span>
+                                <input type="text" class="form-control" 
+                                       placeholder="Firma adı, yetkili kişi, telefon..." 
+                                       @bind="searchTerm" 
+                                       @onkeypress="OnSearchKeyPress" />
+                                @if (!string.IsNullOrEmpty(searchTerm))
+                                {
+                                    <button class="btn btn-outline-secondary" @onclick="ClearSearch">
+                                        <i class="fas fa-times"></i>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">Firma Tipi</label>
+                            <SfDropDownList TValue="CompanyType?" TItem="CompanyTypeOption" 
+                                          @bind-Value="selectedCompanyType"
+                                          DataSource="@companyTypeOptions"
+                                          Placeholder="Tümü">
+                                <DropDownListFieldSettings Text="Text" Value="Value" />
+                                <DropDownListEvents TValue="CompanyType?" TItem="CompanyTypeOption" 
+                                                  ValueChange="OnCompanyTypeChanged" />
+                            </SfDropDownList>
+                        </div>
+                        
+                        <div class="col-lg-3 col-md-6">
+                            <label class="form-label">Durum</label>
+                            <SfDropDownList TValue="bool?" TItem="StatusOption" 
+                                          @bind-Value="showActiveOnly"
+                                          DataSource="@statusOptions"
+                                          Placeholder="Tümü">
+                                <DropDownListFieldSettings Text="Text" Value="Value" />
+                                <DropDownListEvents TValue="bool?" TItem="StatusOption" 
+                                                  ValueChange="OnStatusChanged" />
+                            </SfDropDownList>
+                        </div>
+                        
+                        <div class="col-lg-2 col-md-6 d-flex align-items-end">
+                            <button class="btn btn-primary w-100" @onclick="ApplyFilters">
+                                <i class="fas fa-filter me-2"></i>
+                                Filtrele
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @* Ana müşteri listesi *@
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    @if (isLoading)
+                    {
+                        <div class="text-center py-5">
+                            <div class="spinner-border text-primary" role="status">
+                                <span class="visually-hidden">Yükleniyor...</span>
+                            </div>
+                            <div class="mt-3">
+                                <p class="text-muted">Müşteri verileri yükleniyor...</p>
+                            </div>
+                        </div>
+                    }
+                    else if (!customers.Any())
+                    {
+                        <div class="text-center py-5">
+                            <i class="fas fa-building fa-4x text-muted mb-3"></i>
+                            <h5 class="text-muted">Müşteri bulunamadı</h5>
+                            <p class="text-muted">
+                                @if (!string.IsNullOrEmpty(searchTerm))
+                                {
+                                    <text>Arama kriterlerinize uygun müşteri bulunamadı.</text>
+                                }
+                                else
+                                {
+                                    <text>Henüz hiç müşteri kaydedilmemiş.</text>
+                                }
+                            </p>
+                            @if (AuthService.IsSupervisorOrAdmin && string.IsNullOrEmpty(searchTerm))
+                            {
+                                <button class="btn btn-primary" @onclick="CreateNewCustomer">
+                                    <i class="fas fa-plus me-2"></i>
+                                    İlk Müşteriyi Ekle
+                                </button>
+                            }
+                        </div>
+                    }
+                    else
+                    {
+                        <SfGrid DataSource="@customers" 
+                               AllowPaging="true" 
+                               AllowSorting="true"
+                               AllowResizing="true"
+                               GridLines="GridLine.Both"
+                               Height="600">
+                            
+                            <GridPageSettings PageSize="@pageSize" PageCount="5" />
+                            
+                            <GridColumns>
+                                <GridColumn Field="@nameof(Customer.CompanyName)" 
+                                          HeaderText="Firma Adı" 
+                                          Width="200"
+                                          AllowSorting="true">
+                                    <Template>
+                                        @{
+                                            var customer = context as Customer;
+                                        }
+                                        <div class="d-flex align-items-center">
+                                            <div class="me-2">
+                                                @if (customer!.CompanyType == CompanyType.Corporate)
+                                                {
+                                                    <i class="fas fa-building text-primary"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-user text-info"></i>
+                                                }
+                                            </div>
+                                            <div>
+                                                <strong>@customer.CompanyName</strong>
+                                                @if (!customer.IsActive)
+                                                {
+                                                    <span class="badge bg-secondary ms-2">Pasif</span>
+                                                }
+                                            </div>
+                                        </div>
+                                    </Template>
+                                </GridColumn>
+                                
+                                <GridColumn Field="@nameof(Customer.CompanyType)" 
+                                          HeaderText="Tip" 
+                                          Width="80">
+                                    <Template>
+                                        @{
+                                            var customer = context as Customer;
+                                        }
+                                        <span class="badge @(customer!.CompanyType == CompanyType.Corporate ? "bg-primary" : "bg-info")">
+                                            @(customer.CompanyType == CompanyType.Corporate ? "Kurumsal" : "Bireysel")
+                                        </span>
+                                    </Template>
+                                </GridColumn>
+                                
+                                <GridColumn Field="@nameof(Customer.TaxNumber)" 
+                                          HeaderText="Vergi No/TCKN" 
+                                          Width="120" />
+                                
+                                <GridColumn Field="@nameof(Customer.AuthorizedPersonName)" 
+                                          HeaderText="Yetkili Kişi" 
+                                          Width="150" />
+                                
+                                <GridColumn Field="@nameof(Customer.PhoneNumber)" 
+                                          HeaderText="Telefon" 
+                                          Width="120">
+                                    <Template>
+                                        @{
+                                            var customer = context as Customer;
+                                        }
+                                        <a href="tel:@customer!.PhoneNumber" class="text-decoration-none">
+                                            <i class="fas fa-phone me-1 text-success"></i>
+                                            @customer.PhoneNumber
+                                        </a>
+                                    </Template>
+                                </GridColumn>
+                                
+                                <GridColumn Field="@nameof(Customer.CreatedDate)" 
+                                          HeaderText="Kayıt Tarihi" 
+                                          Width="110"
+                                          Format="dd.MM.yyyy" />
+                                
+                                <GridColumn HeaderText="İşlemler" 
+                                          Width="120" 
+                                          AllowSorting="false">
+                                    <Template>
+                                        @{
+                                            var customer = context as Customer;
+                                        }
+                                        <div class="btn-group btn-group-sm">
+                                            <button class="btn btn-outline-primary" 
+                                                   @onclick="() => ViewCustomer(customer!.Id)"
+                                                   title="Detayları Görüntüle">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            @if (AuthService.IsSupervisorOrAdmin)
+                                            {
+                                                <button class="btn btn-outline-secondary" 
+                                                       @onclick="() => EditCustomer(customer!.Id)"
+                                                       title="Düzenle">
+                                                    <i class="fas fa-edit"></i>
+                                                </button>
+                                                @if (customer!.IsActive)
+                                                {
+                                                    <button class="btn btn-outline-danger" 
+                                                           @onclick="() => DeactivateCustomer(customer.Id)"
+                                                           title="Pasif Yap">
+                                                        <i class="fas fa-ban"></i>
+                                                    </button>
+                                                }
+                                                else
+                                                {
+                                                    <button class="btn btn-outline-success" 
+                                                           @onclick="() => ActivateCustomer(customer.Id)"
+                                                           title="Aktif Yap">
+                                                        <i class="fas fa-check"></i>
+                                                    </button>
+                                                }
+                                            }
+                                        </div>
+                                    </Template>
+                                </GridColumn>
+                            </GridColumns>
+                        </SfGrid>
+                    }
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    // Component state
+    private bool isLoading = true;
+    private IEnumerable<Customer> customers = new List<Customer>();
+    private int totalRecords = 0;
+    private int activeCustomers = 0;
+    private int pageSize = 20;
+    private int currentPage = 1;
+
+    // Filter state
+    private string searchTerm = string.Empty;
+    private CompanyType? selectedCompanyType = null;
+    private bool? showActiveOnly = true;
+
+    // Dropdown options
+    private List<CompanyTypeOption> companyTypeOptions = new()
+    {
+        new CompanyTypeOption { Text = "Tümü", Value = null },
+        new CompanyTypeOption { Text = "Kurumsal", Value = CompanyType.Corporate },
+        new CompanyTypeOption { Text = "Bireysel", Value = CompanyType.Individual }
+    };
+
+    private List<StatusOption> statusOptions = new()
+    {
+        new StatusOption { Text = "Sadece Aktif", Value = true },
+        new StatusOption { Text = "Sadece Pasif", Value = false },
+        new StatusOption { Text = "Tümü", Value = null }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCustomers();
+    }
+
+    private async Task LoadCustomers()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            var includeInactive = showActiveOnly != true;
+            var (customerData, total) = await CustomerService.GetCustomersPagedAsync(
+                currentPage, pageSize, searchTerm, selectedCompanyType, includeInactive);
+
+            customers = customerData;
+            totalRecords = total;
+            activeCustomers = customers.Count(c => c.IsActive);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Müşteri yükleme hatası: {ex.Message}");
+            // Hata mesajı gösterimi eklenebilir
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnSearchKeyPress(KeyboardEventArgs e)
+    {
+        if (e.Key == "Enter")
+        {
+            await ApplyFilters();
+        }
+    }
+
+    private async Task ApplyFilters()
+    {
+        currentPage = 1;
+        await LoadCustomers();
+    }
+
+    private async Task ClearSearch()
+    {
+        searchTerm = string.Empty;
+        await ApplyFilters();
+    }
+
+    private async Task OnCompanyTypeChanged(ChangeEventArgs<CompanyType?, CompanyTypeOption> args)
+    {
+        selectedCompanyType = args.Value;
+        await ApplyFilters();
+    }
+
+    private async Task OnStatusChanged(ChangeEventArgs<bool?, StatusOption> args)
+    {
+        showActiveOnly = args.Value;
+        await ApplyFilters();
+    }
+
+    private async Task RefreshData()
+    {
+        await LoadCustomers();
+    }
+
+    private void CreateNewCustomer()
+    {
+        NavigationManager.NavigateTo("/customers/new");
+    }
+
+    private void ViewCustomer(int customerId)
+    {
+        NavigationManager.NavigateTo($"/customers/{customerId}");
+    }
+
+    private void EditCustomer(int customerId)
+    {
+        NavigationManager.NavigateTo($"/customers/{customerId}/edit");
+    }
+
+    private async Task DeactivateCustomer(int customerId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            "Bu müşteriyi pasif hale getirmek istediğinizden emin misiniz?");
+        
+        if (!confirmed) return;
+
+        try
+        {
+            var result = await CustomerService.DeactivateCustomerAsync(customerId, AuthService.CurrentUser!.Id);
+            if (result.IsSuccess)
+            {
+                await RefreshData();
+                await JSRuntime.InvokeVoidAsync("alert", "Müşteri başarıyla pasif hale getirildi.");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "İşlem sırasında bir hata oluştu.");
+        }
+    }
+
+    private async Task ActivateCustomer(int customerId)
+    {
+        try
+        {
+            var result = await CustomerService.ActivateCustomerAsync(customerId, AuthService.CurrentUser!.Id);
+            if (result.IsSuccess)
+            {
+                await RefreshData();
+                await JSRuntime.InvokeVoidAsync("alert", "Müşteri başarıyla aktif hale getirildi.");
+            }
+            else
+            {
+                await JSRuntime.InvokeVoidAsync("alert", result.ErrorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "İşlem sırasında bir hata oluştu.");
+        }
+    }
+
+    // Helper classes for dropdown options
+    public class CompanyTypeOption
+    {
+        public string Text { get; set; } = string.Empty;
+        public CompanyType? Value { get; set; }
+    }
+
+    public class StatusOption
+    {
+        public string Text { get; set; } = string.Empty;
+        public bool? Value { get; set; }
+    }
+}

@@ -1,0 +1,400 @@
+﻿@using CRM.Services
+@using CRM.Enums
+@inherits LayoutView
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@(pageTitle ?? "Teknik Servis Yönetim Sistemi")</title>
+    <base href="/" />
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
+    <!-- Font Awesome Icons -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+    <!-- Syncfusion Blazor Theme -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/syncfusion-blazor/23.2.7/styles/bootstrap5.css" rel="stylesheet" />
+    <!-- Custom CSS -->
+    <link href="css/app.css" rel="stylesheet" />
+    <link href="css/custom.css" rel="stylesheet" />
+</head>
+
+<body>
+    <div id="app">
+        @if (AuthService.IsAuthenticated)
+        {
+                <!-- Authenticated Layout with Sidebar -->
+                <div class="layout-wrapper">
+                    <!-- Sidebar Navigation -->
+                    <nav class="sidebar @(sidebarCollapsed ? "collapsed" : "")" id="sidebar">
+                        <div class="sidebar-header">
+                            <div class="brand-section">
+                                @if (!sidebarCollapsed)
+                                {
+                                        <h4 class="brand-title">
+                                            <i class="fas fa-tools text-primary me-2"></i>
+                                            Teknik Servis
+                                        </h4>
+                                        <small class="brand-subtitle">Yönetim Sistemi</small>
+                                }
+                                else
+                                {
+                                        <i class="fas fa-tools text-primary"></i>
+                                }
+                            </div>
+                            <button class="btn btn-link sidebar-toggle d-lg-none" @onclick="ToggleMobileSidebar">
+                                <i class="fas fa-times"></i>
+                            </button>
+                        </div>
+
+                        <!-- User Profile Section -->
+                        <div class="user-profile-section">
+                            @if (!sidebarCollapsed)
+                            {
+                                    <div class="user-info">
+                                        @if (!string.IsNullOrEmpty(AuthService.CurrentUser?.ProfileImage))
+                                        {
+                                                <img src="data:image/jpeg;base64,@AuthService.CurrentUser.ProfileImage" 
+                                                     class="user-avatar" alt="Profil" />
+                                        }
+                                        else
+                                        {
+                                                <div class="user-avatar-placeholder">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                        }
+                                        <div class="user-details">
+                                            <span class="user-name">@AuthService.CurrentUser?.Username</span>
+                                            <small class="user-role">@GetRoleDisplayName(AuthService.CurrentUser?.Role)</small>
+                                        </div>
+                                    </div>
+                            }
+                            else
+                            {
+                                    <div class="user-avatar-small">
+                                        @if (!string.IsNullOrEmpty(AuthService.CurrentUser?.ProfileImage))
+                                        {
+                                                <img src="data:image/jpeg;base64,@AuthService.CurrentUser.ProfileImage" 
+                                                     class="user-avatar-mini" alt="Profil" />
+                                        }
+                                        else
+                                        {
+                                                <i class="fas fa-user"></i>
+                                        }
+                                    </div>
+                            }
+                        </div>
+
+                        <!-- Navigation Menu -->
+                        <ul class="nav-menu">
+                            <!-- Dashboard -->
+                            <li class="nav-item">
+                                <a href="/dashboard" class="nav-link @GetActiveClass("/dashboard")">
+                                    <i class="fas fa-chart-pie nav-icon"></i>
+                                    @if (!sidebarCollapsed)
+                                    {
+                                            <span class="nav-text">Dashboard</span>
+                                    }
+                                </a>
+                            </li>
+
+                            <!-- Müşteriler -->
+                            <li class="nav-item">
+                                <a href="/customers" class="nav-link @GetActiveClass("/customers")">
+                                    <i class="fas fa-building nav-icon"></i>
+                                    @if (!sidebarCollapsed)
+                                    {
+                                            <span class="nav-text">Müşteriler</span>
+                                    }
+                                </a>
+                            </li>
+
+                            <!-- Servisler -->
+                            <li class="nav-item dropdown">
+                                <a href="#" class="nav-link dropdown-toggle" @onclick="ToggleServicesDropdown">
+                                    <i class="fas fa-wrench nav-icon"></i>
+                                    @if (!sidebarCollapsed)
+                                    {
+                                            <span class="nav-text">Servisler</span>
+                                            <i class="fas fa-chevron-down dropdown-arrow @(servicesDropdownOpen ? "rotated" : "")"></i>
+                                    }
+                                </a>
+                                @if (servicesDropdownOpen && !sidebarCollapsed)
+                                {
+                                        <ul class="dropdown-menu">
+                                            <li><a href="/services/pending" class="dropdown-item">Bekleyen Servisler</a></li>
+                                            <li><a href="/services/active" class="dropdown-item">Aktif Servisler</a></li>
+                                            @if (AuthService.IsAdmin)
+                                            {
+                                                    <li><a href="/services/pending-approval" class="dropdown-item">Onay Bekleyenler</a></li>
+                                            }
+                                            <li><a href="/services/completed" class="dropdown-item">Tamamlananlar</a></li>
+                                            <li><hr class="dropdown-divider"></li>
+                                            <li><a href="/services/new" class="dropdown-item">
+                                                <i class="fas fa-plus me-2"></i>Yeni Servis
+                                            </a></li>
+                                        </ul>
+                                }
+                            </li>
+
+                            <!-- Kullanıcılar - Sadece Admin ve Supervisor -->
+                            @if (AuthService.IsSupervisorOrAdmin)
+                            {
+                                    <li class="nav-item">
+                                        <a href="/users" class="nav-link @GetActiveClass("/users")">
+                                            <i class="fas fa-users nav-icon"></i>
+                                            @if (!sidebarCollapsed)
+                                            {
+                                                    <span class="nav-text">Kullanıcılar</span>
+                                            }
+                                        </a>
+                                    </li>
+                            }
+
+                            <!-- Raporlar - Sadece Admin ve Supervisor -->
+                            @if (AuthService.IsSupervisorOrAdmin)
+                            {
+                                    <li class="nav-item">
+                                        <a href="/reports" class="nav-link @GetActiveClass("/reports")">
+                                            <i class="fas fa-chart-bar nav-icon"></i>
+                                            @if (!sidebarCollapsed)
+                                            {
+                                                    <span class="nav-text">Raporlar</span>
+                                            }
+                                        </a>
+                                    </li>
+                            }
+
+                            <!-- Ayarlar - Sadece Admin -->
+                            @if (AuthService.IsAdmin)
+                            {
+                                    <li class="nav-item">
+                                        <a href="/settings" class="nav-link @GetActiveClass("/settings")">
+                                            <i class="fas fa-cog nav-icon"></i>
+                                            @if (!sidebarCollapsed)
+                                            {
+                                                    <span class="nav-text">Ayarlar</span>
+                                            }
+                                        </a>
+                                    </li>
+                            }
+                        </ul>
+
+                        <!-- Logout Button -->
+                        <div class="sidebar-footer">
+                            <button class="btn btn-outline-danger w-100" @onclick="HandleLogout">
+                                <i class="fas fa-sign-out-alt me-2"></i>
+                                @if (!sidebarCollapsed)
+                                {
+                                        <span>Çıkış Yap</span>
+                                }
+                            </button>
+                        </div>
+                    </nav>
+
+                    <!-- Main Content Area -->
+                    <div class="main-content @(sidebarCollapsed ? "expanded" : "")">
+                        <!-- Top Header -->
+                        <header class="top-header">
+                            <div class="header-left">
+                                <button class="btn btn-link sidebar-toggle d-none d-lg-inline-block" @onclick="ToggleDesktopSidebar">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                                <button class="btn btn-link sidebar-toggle d-lg-none" @onclick="ToggleMobileSidebar">
+                                    <i class="fas fa-bars"></i>
+                                </button>
+                                <h1 class="page-title">@pageTitle</h1>
+                            </div>
+                            <div class="header-right">
+                                <!-- Notification Bell -->
+                                <div class="dropdown">
+                                    <button class="btn btn-link notification-btn" type="button" data-bs-toggle="dropdown">
+                                        <i class="fas fa-bell"></i>
+                                        @if (notificationCount > 0)
+                                        {
+                                                <span class="notification-badge">@notificationCount</span>
+                                        }
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end notification-dropdown">
+                                        <li><h6 class="dropdown-header">Bildirimler</h6></li>
+                                        @if (notificationCount == 0)
+                                        {
+                                                <li><span class="dropdown-item-text">Yeni bildirim yok</span></li>
+                                        }
+                                        else
+                                        {
+                                                <!-- Dinamik bildirimler buraya gelecek -->
+                                                <li><a class="dropdown-item" href="#">Örnek bildirim</a></li>
+                                        }
+                                    </ul>
+                                </div>
+
+                                <!-- User Dropdown -->
+                                <div class="dropdown">
+                                    <button class="btn btn-link user-menu-btn" type="button" data-bs-toggle="dropdown">
+                                        @if (!string.IsNullOrEmpty(AuthService.CurrentUser?.ProfileImage))
+                                        {
+                                                <img src="data:image/jpeg;base64,@AuthService.CurrentUser.ProfileImage" 
+                                                     class="user-menu-avatar" alt="Profil" />
+                                        }
+                                        else
+                                        {
+                                                <div class="user-menu-avatar-placeholder">
+                                                    <i class="fas fa-user"></i>
+                                                </div>
+                                        }
+                                        <i class="fas fa-chevron-down ms-2"></i>
+                                    </button>
+                                    <ul class="dropdown-menu dropdown-menu-end">
+                                        <li><h6 class="dropdown-header">@AuthService.CurrentUser?.Username</h6></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item" href="/profile">
+                                            <i class="fas fa-user me-2"></i>Profil
+                                        </a></li>
+                                        <li><a class="dropdown-item" href="/settings">
+                                            <i class="fas fa-cog me-2"></i>Ayarlar
+                                        </a></li>
+                                        <li><hr class="dropdown-divider"></li>
+                                        <li><a class="dropdown-item text-danger" @onclick="HandleLogout" href="#">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Çıkış Yap
+                                        </a></li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </header>
+
+                        <!-- Page Content -->
+                        <main class="page-content">
+                            @Body
+                        </main>
+                    </div>
+
+                    <!-- Mobile Sidebar Overlay -->
+                    @if (mobileSidebarOpen)
+                    {
+                            <div class="sidebar-overlay d-lg-none" @onclick="ToggleMobileSidebar"></div>
+                    }
+                </div>
+        }
+        else
+        {
+                <!-- Non-authenticated layout (Login page) -->
+                @Body
+        }
+    </div>
+
+    <!-- JavaScript -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
+    <script src="_framework/blazor.webview.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
+
+@code {
+    private string? pageTitle;
+    private bool sidebarCollapsed = false;
+    private bool mobileSidebarOpen = false;
+    private bool servicesDropdownOpen = false;
+    private int notificationCount = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Eğer kullanıcı giriş yapmamışsa login sayfasına yönlendir
+        if (!AuthService.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login");
+            return;
+        }
+
+        // Sayfa başlığını URL'den çıkar
+        UpdatePageTitle();
+        
+        // Navigation event'ini dinle
+        NavigationManager.LocationChanged += OnLocationChanged;
+
+        // Bildirimleri yükle (ileride implement edilecek)
+        await LoadNotifications();
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        UpdatePageTitle();
+        StateHasChanged();
+    }
+
+    private void UpdatePageTitle()
+    {
+        var uri = NavigationManager.ToAbsoluteUri(NavigationManager.Uri);
+        var path = uri.AbsolutePath.ToLower();
+
+        pageTitle = path switch
+        {
+            "/dashboard" => "Dashboard",
+            "/customers" => "Müşteriler",
+            "/services/pending" => "Bekleyen Servisler",
+            "/services/active" => "Aktif Servisler",
+            "/services/pending-approval" => "Onay Bekleyen Servisler",
+            "/services/completed" => "Tamamlanan Servisler",
+            "/services/new" => "Yeni Servis",
+            "/users" => "Kullanıcılar",
+            "/reports" => "Raporlar",
+            "/settings" => "Ayarlar",
+            "/profile" => "Profil",
+            _ => "Teknik Servis"
+        };
+    }
+
+    private string GetActiveClass(string path)
+    {
+        var currentPath = NavigationManager.ToAbsoluteUri(NavigationManager.Uri).AbsolutePath;
+        return currentPath.StartsWith(path, StringComparison.OrdinalIgnoreCase) ? "active" : "";
+    }
+
+    private string GetRoleDisplayName(UserRole? role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "Yönetici",
+            UserRole.Supervisor => "Süpervizör",
+            UserRole.Technician => "Teknisyen",
+            _ => "Kullanıcı"
+        };
+    }
+
+    private void ToggleDesktopSidebar()
+    {
+        sidebarCollapsed = !sidebarCollapsed;
+    }
+
+    private void ToggleMobileSidebar()
+    {
+        mobileSidebarOpen = !mobileSidebarOpen;
+    }
+
+    private void ToggleServicesDropdown()
+    {
+        servicesDropdownOpen = !servicesDropdownOpen;
+    }
+
+    private async Task HandleLogout()
+    {
+        await AuthService.LogoutAsync();
+        NavigationManager.NavigateTo("/login");
+    }
+
+    private async Task LoadNotifications()
+    {
+        // İleride notification servisi implement edildiğinde bu metod kullanılacak
+        notificationCount = 0; // Örnek değer
+    }
+
+    public void Dispose()
+    {
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

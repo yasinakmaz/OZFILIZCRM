@@ -1,0 +1,780 @@
+﻿@page "/services/new"
+@page "/services/{serviceId:int}/edit"
+@using CRM.Services
+@using CRM.DTOs
+@using CRM.Data.Models
+@using CRM.Enums
+@using Syncfusion.Blazor.Inputs
+@using Syncfusion.Blazor.DropDowns
+@using Syncfusion.Blazor.Buttons
+@using Syncfusion.Blazor.Calendars
+@inject ServiceManagementService ServiceManagementService
+@inject CustomerService CustomerService
+@inject UserService UserService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>@(IsEditMode ? "Servis Düzenle" : "Yeni Servis") - Teknik Servis</PageTitle>
+
+<div class="service-form-container">
+    
+    @* Sayfa başlığı ve navigasyon *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/services/pending">Servisler</a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        @(IsEditMode ? "Düzenle" : "Yeni Servis")
+                    </li>
+                </ol>
+            </nav>
+            
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="page-title">
+                        <i class="fas fa-@(IsEditMode ? "edit" : "plus") me-3 text-primary"></i>
+                        @(IsEditMode ? "Servis Düzenle" : "Yeni Servis Oluştur")
+                    </h2>
+                    @if (IsEditMode && selectedCustomer != null)
+                    {
+                        <p class="text-muted mb-0">
+                            #@ServiceId • @selectedCustomer.CompanyName
+                        </p>
+                    }
+                </div>
+                <div>
+                    <button class="btn btn-outline-secondary" @onclick="GoBack">
+                        <i class="fas fa-arrow-left me-2"></i>
+                        Geri Dön
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <div class="mt-3">
+                <p class="text-muted">Servis bilgileri yükleniyor...</p>
+            </div>
+        </div>
+    }
+    else
+    {
+        <EditForm Model="@serviceModel" OnValidSubmit="@HandleSubmit" FormName="ServiceForm">
+            <DataAnnotationsValidator />
+            
+            @* Hata ve başarı mesajları *@
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    @errorMessage
+                    <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+                </div>
+            }
+            
+            @if (!string.IsNullOrEmpty(successMessage))
+            {
+                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                    <i class="fas fa-check-circle me-2"></i>
+                    @successMessage
+                    <button type="button" class="btn-close" @onclick="ClearMessage"></button>
+                </div>
+            }
+
+            <div class="row">
+                @* Sol kolon - Ana servis bilgileri *@
+                <div class="col-lg-8 col-12">
+                    
+                    @* Müşteri seçimi *@
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-building me-2"></i>
+                                Müşteri Bilgileri
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (!IsEditMode)
+                            {
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label required">
+                                            <i class="fas fa-search me-1"></i>
+                                            Müşteri Seçimi
+                                        </label>
+                                        <div class="input-group">
+                                            <SfAutoComplete TValue="string" TItem="Customer"
+                                                          DataSource="@customers"
+                                                          @bind-Value="customerSearchText"
+                                                          Placeholder="Müşteri adı, telefon veya vergi numarası ile arayın..."
+                                                          MinLength="2"
+                                                          SuggestionCount="10"
+                                                          ShowPopupButton="true"
+                                                          Enabled="@(!isSaving)">
+                                                <AutoCompleteFieldSettings Text="CompanyName" Value="CompanyName" />
+                                                <AutoCompleteEvents TValue="string" TItem="Customer" 
+                                                                  ValueChange="OnCustomerSelected"
+                                                                  Filtering="OnCustomerFiltering" />
+                                                <AutoCompleteTemplates TItem="Customer">
+                                                    <ItemTemplate>
+                                                        <div class="customer-suggestion">
+                                                            <div class="d-flex align-items-center">
+                                                                <div class="me-2">
+                                                                    @if (context.CompanyType == CompanyType.Corporate)
+                                                                    {
+                                                                        <i class="fas fa-building text-primary"></i>
+                                                                    }
+                                                                    else
+                                                                    {
+                                                                        <i class="fas fa-user text-info"></i>
+                                                                    }
+                                                                </div>
+                                                                <div>
+                                                                    <strong>@context.CompanyName</strong>
+                                                                    <br />
+                                                                    <small class="text-muted">
+                                                                        @context.AuthorizedPersonName • @context.PhoneNumber
+                                                                    </small>
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                    </ItemTemplate>
+                                                </AutoCompleteTemplates>
+                                            </SfAutoComplete>
+                                            <button type="button" class="btn btn-outline-primary" @onclick="OpenCustomerModal">
+                                                <i class="fas fa-search"></i>
+                                            </button>
+                                        </div>
+                                        <ValidationMessage For="@(() => serviceModel.CustomerId)" class="text-danger small mt-1" />
+                                    </div>
+                                    
+                                    @if (selectedCustomer != null)
+                                    {
+                                        <div class="col-12">
+                                            <div class="selected-customer-card border border-success rounded p-3 bg-light">
+                                                <div class="d-flex justify-content-between align-items-start">
+                                                    <div>
+                                                        <h6 class="mb-1">
+                                                            <i class="fas fa-check-circle text-success me-2"></i>
+                                                            Seçili Müşteri
+                                                        </h6>
+                                                        <div class="customer-details">
+                                                            <strong>@selectedCustomer.CompanyName</strong>
+                                                            <br />
+                                                            <span class="text-muted">@selectedCustomer.AuthorizedPersonName</span>
+                                                            <br />
+                                                            <span class="text-muted">
+                                                                <i class="fas fa-phone me-1"></i>
+                                                                @selectedCustomer.PhoneNumber
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                    <button type="button" class="btn btn-sm btn-outline-secondary" 
+                                                           @onclick="ClearSelectedCustomer">
+                                                        <i class="fas fa-times"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else if (selectedCustomer != null)
+                            {
+                                <div class="selected-customer-card border rounded p-3 bg-light">
+                                    <h6 class="mb-2">
+                                        <i class="fas fa-building me-2 text-primary"></i>
+                                        Müşteri Bilgileri
+                                    </h6>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <strong>@selectedCustomer.CompanyName</strong>
+                                            <br />
+                                            <span class="text-muted">@selectedCustomer.AuthorizedPersonName</span>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <span class="text-muted">
+                                                <i class="fas fa-phone me-1"></i>
+                                                @selectedCustomer.PhoneNumber
+                                            </span>
+                                            <br />
+                                            <span class="text-muted">
+                                                @(selectedCustomer.CompanyType == CompanyType.Corporate ? "Kurumsal" : "Bireysel")
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+
+                    @* Servis detayları *@
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-cog me-2"></i>
+                                Servis Detayları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label required">
+                                        <i class="fas fa-calendar me-1"></i>
+                                        Planlanan Tarih
+                                    </label>
+                                    <SfDateTimePicker @bind-Value="serviceModel.ScheduledDateTime"
+                                                    Format="dd.MM.yyyy HH:mm"
+                                                    Placeholder="Tarih ve saat seçiniz"
+                                                    Min="DateTime.Now"
+                                                    Enabled="@(!isSaving)" />
+                                    <ValidationMessage For="@(() => serviceModel.ScheduledDateTime)" class="text-danger small mt-1" />
+                                </div>
+
+                                <div class="col-md-6">
+                                    <label class="form-label">
+                                        <i class="fas fa-lira-sign me-1"></i>
+                                        Servis Tutarı (₺)
+                                    </label>
+                                    <SfNumericTextBox @bind-Value="serviceModel.ServiceAmount"
+                                                    Format="c2"
+                                                    Placeholder="0,00"
+                                                    Min="0"
+                                                    Step="10"
+                                                    Enabled="@(!isSaving)" />
+                                    <ValidationMessage For="@(() => serviceModel.ServiceAmount)" class="text-danger small mt-1" />
+                                    <small class="form-text text-muted">
+                                        Servis tutarını şimdi belirtmeyebilirsiniz, sonradan ekleyebilirsiniz.
+                                    </small>
+                                </div>
+
+                                <div class="col-12">
+                                    <label class="form-label">
+                                        <i class="fas fa-sticky-note me-1"></i>
+                                        Servis Notları
+                                    </label>
+                                    <SfTextBox @bind-Value="serviceModel.Notes"
+                                             Multiline="true"
+                                             Placeholder="Servis hakkında özel notlar, önemli detaylar..."
+                                             Enabled="@(!isSaving)"
+                                             FloatLabelType="FloatLabelType.Never" />
+                                    <ValidationMessage For="@(() => serviceModel.Notes)" class="text-danger small mt-1" />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Yapılacaklar listesi *@
+                    <div class="card mb-4">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-tasks me-2"></i>
+                                Yapılacaklar Listesi
+                            </h5>
+                            <button type="button" class="btn btn-sm btn-primary" @onclick="AddNewTask">
+                                <i class="fas fa-plus me-1"></i>
+                                Görev Ekle
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            @if (serviceModel.Tasks.Any())
+                            {
+                                <div class="tasks-list">
+                                    @for (int i = 0; i < serviceModel.Tasks.Count; i++)
+                                    {
+                                        var taskIndex = i;
+                                        var task = serviceModel.Tasks[taskIndex];
+                                        
+                                        <div class="task-item border rounded p-3 mb-3 @GetTaskBorderClass(task.Priority)">
+                                            <div class="row g-3">
+                                                <div class="col-md-8">
+                                                    <label class="form-label required">
+                                                        Görev Açıklaması
+                                                    </label>
+                                                    <SfTextBox @bind-Value="task.Description"
+                                                             Placeholder="Ne yapılacağını detaylı şekilde açıklayın..."
+                                                             Enabled="@(!isSaving && !task.IsCompleted)"
+                                                             FloatLabelType="FloatLabelType.Never" />
+                                                </div>
+                                                
+                                                <div class="col-md-3">
+                                                    <label class="form-label required">
+                                                        Öncelik
+                                                    </label>
+                                                    <SfDropDownList TValue="Priority" TItem="PriorityOption" 
+                                                                  @bind-Value="task.Priority"
+                                                                  DataSource="@priorityOptions"
+                                                                  Enabled="@(!isSaving && !task.IsCompleted)">
+                                                        <DropDownListFieldSettings Text="Text" Value="Value" />
+                                                    </SfDropDownList>
+                                                </div>
+                                                
+                                                <div class="col-md-1 d-flex align-items-end">
+                                                    @if (!task.IsCompleted)
+                                                    {
+                                                        <button type="button" class="btn btn-outline-danger btn-sm" 
+                                                               @onclick="() => RemoveTask(taskIndex)"
+                                                               title="Görevi Sil">
+                                                            <i class="fas fa-trash"></i>
+                                                        </button>
+                                                    }
+                                                    else
+                                                    {
+                                                        <div class="text-center">
+                                                            <i class="fas fa-check-circle text-success" title="Tamamlandı"></i>
+                                                            <br />
+                                                            <small class="text-muted">
+                                                                @task.CompletedDate?.ToString("dd.MM")
+                                                            </small>
+                                                        </div>
+                                                    }
+                                                </div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-4">
+                                    <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                                    <h6 class="text-muted">Henüz görev eklenmemiş</h6>
+                                    <p class="text-muted mb-3">
+                                        Serviste yapılacak işleri görev olarak ekleyebilirsiniz.
+                                    </p>
+                                    <button type="button" class="btn btn-primary" @onclick="AddNewTask">
+                                        <i class="fas fa-plus me-2"></i>
+                                        İlk Görevi Ekle
+                                    </button>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                @* Sağ kolon - Yardım ve istatistikler *@
+                <div class="col-lg-4 col-12">
+                    
+                    @* Yardım kartı *@
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-question-circle me-2"></i>
+                                Yardım
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="help-content">
+                                <div class="help-item mb-3">
+                                    <h6><i class="fas fa-search text-primary me-2"></i>Müşteri Seçimi</h6>
+                                    <small class="text-muted">
+                                        Müşteri adı, telefon numarası veya vergi numarası ile arama yapabilirsiniz.
+                                    </small>
+                                </div>
+                                
+                                <div class="help-item mb-3">
+                                    <h6><i class="fas fa-calendar text-primary me-2"></i>Planlanan Tarih</h6>
+                                    <small class="text-muted">
+                                        Müşteri ile anlaştığınız servis tarihini seçiniz. Geçmiş tarih seçilemez.
+                                    </small>
+                                </div>
+                                
+                                <div class="help-item mb-3">
+                                    <h6><i class="fas fa-tasks text-primary me-2"></i>Görevler</h6>
+                                    <small class="text-muted">
+                                        Serviste yapılacak işleri detaylı şekilde görev olarak ekleyiniz. 
+                                        Öncelik seviyesini belirtmeyi unutmayın.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Öncelik açıklamaları *@
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-flag me-2"></i>
+                                Öncelik Seviyeleri
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="priority-guide">
+                                <div class="priority-item d-flex align-items-center mb-2">
+                                    <span class="badge bg-danger me-2">Kritik</span>
+                                    <small class="text-muted">Acil müdahale gerektiren</small>
+                                </div>
+                                <div class="priority-item d-flex align-items-center mb-2">
+                                    <span class="badge bg-warning text-dark me-2">Yüksek</span>
+                                    <small class="text-muted">Öncelikli olarak yapılacak</small>
+                                </div>
+                                <div class="priority-item d-flex align-items-center mb-2">
+                                    <span class="badge bg-info me-2">Normal</span>
+                                    <small class="text-muted">Standart iş akışı</small>
+                                </div>
+                                <div class="priority-item d-flex align-items-center">
+                                    <span class="badge bg-secondary me-2">Düşük</span>
+                                    <small class="text-muted">Zaman müsait olduğunda</small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    @* Düzenleme modunda istatistikler *@
+                    @if (IsEditMode && serviceStats != null)
+                    {
+                        <div class="card">
+                            <div class="card-header">
+                                <h6 class="card-title mb-0">
+                                    <i class="fas fa-chart-bar me-2"></i>
+                                    Servis İstatistikleri
+                                </h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="stats-grid">
+                                    <div class="stat-item text-center mb-3">
+                                        <div class="stat-number text-primary">@serviceStats.TotalTasks</div>
+                                        <div class="stat-label">Toplam Görev</div>
+                                    </div>
+                                    
+                                    <div class="stat-item text-center mb-3">
+                                        <div class="stat-number text-success">@serviceStats.CompletedTasks</div>
+                                        <div class="stat-label">Tamamlanan</div>
+                                    </div>
+                                    
+                                    @if (serviceStats.TotalTasks > 0)
+                                    {
+                                        <div class="progress-section">
+                                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                                <small class="text-muted">İlerleme</small>
+                                                <small class="text-muted">
+                                                    @((double)serviceStats.CompletedTasks / serviceStats.TotalTasks * 100:F0)%
+                                                </small>
+                                            </div>
+                                            <div class="progress">
+                                                <div class="progress-bar" 
+                                                     style="width: @((double)serviceStats.CompletedTasks / serviceStats.TotalTasks * 100)%"></div>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @* Form alt butonları *@
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <div class="d-flex justify-content-between">
+                                <button type="button" class="btn btn-outline-secondary" 
+                                       @onclick="GoBack" 
+                                       disabled="@isSaving">
+                                    <i class="fas fa-times me-2"></i>
+                                    İptal
+                                </button>
+                                
+                                <div class="d-flex gap-2">
+                                    @if (IsEditMode)
+                                    {
+                                        <button type="button" class="btn btn-outline-info" 
+                                               @onclick="ViewService" 
+                                               disabled="@isSaving">
+                                            <i class="fas fa-eye me-2"></i>
+                                            Detayları Görüntüle
+                                        </button>
+                                    }
+                                    
+                                    <button type="submit" class="btn btn-primary" disabled="@(isSaving || selectedCustomer == null)">
+                                        @if (isSaving)
+                                        {
+                                            <span class="spinner-border spinner-border-sm me-2"></span>
+                                            <span>Kaydediliyor...</span>
+                                        }
+                                        else
+                                        {
+                                            <i class="fas fa-save me-2"></i>
+                                            <span>@(IsEditMode ? "Güncelle" : "Kaydet")</span>
+                                        }
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </EditForm>
+    }
+</div>
+
+@code {
+    [Parameter] public int? ServiceId { get; set; }
+
+    // Component state
+    private bool isLoading = true;
+    private bool isSaving = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private ServiceDto serviceModel = new();
+    private Customer? selectedCustomer;
+    private string customerSearchText = string.Empty;
+    private IEnumerable<Customer> customers = new List<Customer>();
+    private ServiceStatsDto? serviceStats;
+
+    // Properties
+    private bool IsEditMode => ServiceId.HasValue && ServiceId > 0;
+
+    // Dropdown options
+    private List<PriorityOption> priorityOptions = new()
+    {
+        new PriorityOption { Text = "Düşük", Value = Priority.Low },
+        new PriorityOption { Text = "Normal", Value = Priority.Normal },
+        new PriorityOption { Text = "Yüksek", Value = Priority.High },
+        new PriorityOption { Text = "Kritik", Value = Priority.Critical }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Authorization kontrolü
+        if (!AuthService.IsSupervisorOrAdmin)
+        {
+            NavigationManager.NavigateTo("/services/pending");
+            return;
+        }
+
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Müşteri listesini yükle
+            customers = await CustomerService.SearchCustomersAsync("");
+
+            if (IsEditMode)
+            {
+                var service = await ServiceManagementService.GetServiceWithDetailsAsync(ServiceId!.Value);
+                if (service == null)
+                {
+                    errorMessage = "Servis bulunamadı.";
+                    return;
+                }
+
+                // Entity'den DTO'ya mapping
+                serviceModel = new ServiceDto
+                {
+                    Id = service.Id,
+                    CustomerId = service.CustomerId,
+                    ServiceAmount = service.ServiceAmount,
+                    ScheduledDateTime = service.ScheduledDateTime,
+                    Notes = service.Notes,
+                    Tasks = service.ServiceTasks.Select(st => new ServiceTaskDto
+                    {
+                        Id = st.Id,
+                        Description = st.Description,
+                        Priority = st.Priority,
+                        IsCompleted = st.IsCompleted,
+                        CompletedDate = st.CompletedDate,
+                        CompletedByUserName = st.CompletedByUser?.Username
+                    }).ToList()
+                };
+
+                selectedCustomer = service.Customer;
+                customerSearchText = selectedCustomer.CompanyName;
+
+                // İstatistikleri hesapla
+                serviceStats = new ServiceStatsDto
+                {
+                    TotalTasks = service.ServiceTasks.Count,
+                    CompletedTasks = service.ServiceTasks.Count(t => t.IsCompleted)
+                };
+            }
+            else
+            {
+                // Yeni servis için default değerler
+                serviceModel = new ServiceDto
+                {
+                    ScheduledDateTime = DateTime.Now.AddHours(1)
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Veriler yüklenirken bir hata oluştu.";
+            Console.WriteLine($"Load data error: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (selectedCustomer == null)
+        {
+            errorMessage = "Lütfen bir müşteri seçiniz.";
+            return;
+        }
+
+        serviceModel.CustomerId = selectedCustomer.Id;
+
+        isSaving = true;
+        ClearMessage();
+        StateHasChanged();
+
+        try
+        {
+            if (IsEditMode)
+            {
+                var result = await ServiceManagementService.UpdateServiceAsync(
+                    ServiceId!.Value, serviceModel, AuthService.CurrentUser!.Id);
+                
+                if (result.IsSuccess)
+                {
+                    successMessage = "Servis başarıyla güncellendi.";
+                    await Task.Delay(1500);
+                    NavigationManager.NavigateTo("/services/pending");
+                }
+                else
+                {
+                    errorMessage = result.ErrorMessage!;
+                }
+            }
+            else
+            {
+                var result = await ServiceManagementService.CreateServiceAsync(
+                    serviceModel, AuthService.CurrentUser!.Id);
+                
+                if (result.IsSuccess)
+                {
+                    successMessage = "Servis başarıyla oluşturuldu.";
+                    await Task.Delay(1500);
+                    NavigationManager.NavigateTo("/services/pending");
+                }
+                else
+                {
+                    errorMessage = result.ErrorMessage!;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "İşlem sırasında bir hata oluştu.";
+            Console.WriteLine($"Submit error: {ex.Message}");
+        }
+        finally
+        {
+            isSaving = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnCustomerFiltering(FilteringEventArgs args)
+    {
+        if (args.Text.Length >= 2)
+        {
+            customers = await CustomerService.SearchCustomersAsync(args.Text);
+        }
+    }
+
+    private void OnCustomerSelected(ChangeEventArgs<string, Customer> args)
+    {
+        selectedCustomer = customers.FirstOrDefault(c => c.CompanyName == args.Value);
+        StateHasChanged();
+    }
+
+    private void AddNewTask()
+    {
+        serviceModel.Tasks.Add(new ServiceTaskDto
+        {
+            Description = "",
+            Priority = Priority.Normal
+        });
+        StateHasChanged();
+    }
+
+    private void RemoveTask(int index)
+    {
+        if (index >= 0 && index < serviceModel.Tasks.Count)
+        {
+            serviceModel.Tasks.RemoveAt(index);
+            StateHasChanged();
+        }
+    }
+
+    private void ClearSelectedCustomer()
+    {
+        selectedCustomer = null;
+        customerSearchText = string.Empty;
+        serviceModel.CustomerId = 0;
+        StateHasChanged();
+    }
+
+    private void OpenCustomerModal()
+    {
+        // Customer selection modal açılacak (ilerleyen aşamada implement edilecek)
+    }
+
+    private void ViewService()
+    {
+        if (IsEditMode)
+        {
+            NavigationManager.NavigateTo($"/services/{ServiceId}");
+        }
+    }
+
+    private void GoBack()
+    {
+        NavigationManager.NavigateTo("/services/pending");
+    }
+
+    private void ClearMessage()
+    {
+        errorMessage = string.Empty;
+        successMessage = string.Empty;
+    }
+
+    private string GetTaskBorderClass(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Critical => "border-danger",
+            Priority.High => "border-warning",
+            Priority.Normal => "border-info",
+            Priority.Low => "border-secondary",
+            _ => ""
+        };
+    }
+
+    // Helper classes
+    public class PriorityOption
+    {
+        public string Text { get; set; } = string.Empty;
+        public Priority Value { get; set; }
+    }
+
+    public class ServiceStatsDto
+    {
+        public int TotalTasks { get; set; }
+        public int CompletedTasks { get; set; }
+    }
+}

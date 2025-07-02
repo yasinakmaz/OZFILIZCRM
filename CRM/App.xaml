@@ -1,0 +1,32 @@
+﻿<?xml version="1.0" encoding="UTF-8" ?>
+<Application x:Class="CRM.App"
+             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:local="clr-namespace:CRM">
+    <Application.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
+                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+
+            <!-- Global application colors -->
+            <Color x:Key="Primary">#007bff</Color>
+            <Color x:Key="Secondary">#6c757d</Color>
+            <Color x:Key="Success">#28a745</Color>
+            <Color x:Key="Danger">#dc3545</Color>
+            <Color x:Key="Warning">#ffc107</Color>
+            <Color x:Key="Info">#17a2b8</Color>
+            <Color x:Key="Light">#f8f9fa</Color>
+            <Color x:Key="Dark">#343a40</Color>
+
+            <!-- Application specific colors -->
+            <Color x:Key="AppPrimary">#007bff</Color>
+            <Color x:Key="AppBackground">#f5f6fa</Color>
+            <Color x:Key="CardBackground">#ffffff</Color>
+            <Color x:Key="TextPrimary">#343a40</Color>
+            <Color x:Key="TextSecondary">#6c757d</Color>
+            <Color x:Key="BorderColor">#e9ecef</Color>
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

@@ -1,0 +1,1039 @@
+﻿@* Dosya Yolu: TeknikServisApp/Components/Pages/Settings/Settings.razor *@
+@page "/settings"
+@using TeknikServisApp.Services
+@using TeknikServisApp.Data.Models
+@using TeknikServisApp.Enums
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Ayarlar - Teknik Servis</PageTitle>
+
+<div class="settings-container">
+    
+    @* Sayfa başlığı *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="page-title">
+                        <i class="fas fa-cog me-3 text-primary"></i>
+                        Sistem Ayarları
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Sistem konfigürasyonu ve yönetim ayarları
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!AuthService.IsAdmin)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Bu sayfaya erişim yetkiniz bulunmuyor. Sadece sistem yöneticileri ayarları değiştirebilir.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @* Sol menü *@
+            <div class="col-lg-3 col-md-4 col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Ayar Kategorileri
+                        </h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <button class="list-group-item list-group-item-action @(activeTab == "general" ? "active" : "")"
+                                @onclick='() => SetActiveTab("general")'>
+                            <i class="fas fa-cogs me-2"></i>
+                            Genel Ayarlar
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "database" ? "active" : "")"
+                                @onclick='() => SetActiveTab("database")'>
+                            <i class="fas fa-database me-2"></i>
+                            Veritabanı
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "security" ? "active" : "")"
+                                @onclick='() => SetActiveTab("security")'>
+                            <i class="fas fa-shield-alt me-2"></i>
+                            Güvenlik
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "logs" ? "active" : "")"
+                                @onclick='() => SetActiveTab("logs")'>
+                            <i class="fas fa-file-alt me-2"></i>
+                            Loglar
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "backup" ? "active" : "")"
+                                @onclick='() => SetActiveTab("backup")'>
+                            <i class="fas fa-hdd me-2"></i>
+                            Yedekleme
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @* Ayar içeriği *@
+            <div class="col-lg-9 col-md-8 col-12">
+                
+                @* Genel Ayarlar *@
+                @if (activeTab == "general")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-cogs me-2"></i>
+                                Genel Sistem Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Şirket Adı</label>
+                                    <input type="text" class="form-control" value="Teknik Servis A.Ş." />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Sistem Versiyonu</label>
+                                    <input type="text" class="form-control" value="1.0.0" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Varsayılan Sayfa Boyutu</label>
+                                    <select class="form-select">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Oturum Süresi (Dakika)</label>
+                                    <input type="number" class="form-control" value="120" min="30" max="480" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableNotifications" checked />
+                                        <label class="form-check-label" for="enableNotifications">
+                                            Sistem bildirimleri aktif
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableAuditLog" checked />
+                                        <label class="form-check-label" for="enableAuditLog">
+                                            Detaylı audit log kaydı
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Veritabanı Ayarları *@
+                @if (activeTab == "database")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-database me-2"></i>
+                                Veritabanı Yönetimi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Veritabanı işlemleri sistem performansını etkileyebilir. Dikkatli kullanın.
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-sync-alt fa-2x text-primary mb-3"></i>
+                                            <h6>Migration Kontrolü</h6>
+                                            <p class="text-muted small">Bekleyen migration'ları kontrol et</p>
+                                            <button class="btn btn-outline-primary btn-sm">
+                                                Kontrol Et
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-download fa-2x text-success mb-3"></i>
+                                            <h6>Veritabanı Yedeği</h6>
+                                            <p class="text-muted small">Tam veritabanı yedeği al</p>
+                                            <button class="btn btn-outline-success btn-sm">
+                                                Yedek Al
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-warning">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-broom fa-2x text-warning mb-3"></i>
+                                            <h6>Log Temizleme</h6>
+                                            <p class="text-muted small">Eski log kayıtlarını temizle</p>
+                                            <button class="btn btn-outline-warning btn-sm">
+                                                Temizle
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-danger">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
+                                            <h6>Veritabanı Sıfırla</h6>
+                                            <p class="text-muted small">Sadece test ortamında!</p>
+                                            <button class="btn btn-outline-danger btn-sm" disabled>
+                                                Sıfırla
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Güvenlik Ayarları *@
+                @if (activeTab == "security")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                Güvenlik Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <h6 class="text-primary">Şifre Politikası</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Minimum Şifre Uzunluğu</label>
+                                            <input type="number" class="form-control" value="6" min="4" max="20" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Şifre Geçerlilik Süresi (Gün)</label>
+                                            <input type="number" class="form-control" value="90" min="30" max="365" />
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="requireUppercase" />
+                                                <label class="form-check-label" for="requireUppercase">
+                                                    Büyük harf zorunlu
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="requireSpecialChar" />
+                                                <label class="form-check-label" for="requireSpecialChar">
+                                                    Özel karakter zorunlu
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <hr />
+                                    <h6 class="text-primary">Giriş Güvenliği</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Max Başarısız Giriş Denemesi</label>
+                                            <input type="number" class="form-control" value="5" min="3" max="10" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Hesap Kilitleme Süresi (Dakika)</label>
+                                            <input type="number" class="form-control" value="15" min="5" max="60" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Güvenlik Ayarlarını Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Log Ayarları *@
+                @if (activeTab == "logs")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-file-alt me-2"></i>
+                                Log Yönetimi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Log Seviyesi</label>
+                                    <select class="form-select">
+                                        <option value="Debug">Debug</option>
+                                        <option value="Information" selected>Information</option>
+                                        <option value="Warning">Warning</option>
+                                        <option value="Error">Error</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Log Saklama Süresi (Gün)</label>
+                                    <input type="number" class="form-control" value="30" min="7" max="365" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableFileLogging" checked />
+                                        <label class="form-check-label" for="enableFileLogging">
+                                            Dosyaya log yazma
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enablePerformanceLog" />
+                                        <label class="form-check-label" for="enablePerformanceLog">
+                                            Performans logları
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary me-2">
+                                    <i class="fas fa-save me-2"></i>
+                                    Kaydet
+                                </button>
+                                <button class="btn btn-outline-info">
+                                    <i class="fas fa-download me-2"></i>
+                                    Log Dosyalarını İndir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Yedekleme Ayarları *@
+                @if (activeTab == "backup")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-hdd me-2"></i>
+                                Yedekleme Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Otomatik Yedekleme</label>
+                                    <select class="form-select">
+                                        <option value="disabled">Devre Dışı</option>
+                                        <option value="daily">Günlük</option>
+                                        <option value="weekly" selected>Haftalık</option>
+                                        <option value="monthly">Aylık</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Yedek Saklama Süresi</label>
+                                    <select class="form-select">
+                                        <option value="7">7 Gün</option>
+                                        <option value="30" selected>30 Gün</option>
+                                        <option value="90">90 Gün</option>
+                                        <option value="365">1 Yıl</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Yedek Klasörü</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="C:\Backups\TeknikServis" readonly />
+                                        <button class="btn btn-outline-secondary">
+                                            <i class="fas fa-folder-open"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary me-2">
+                                    <i class="fas fa-save me-2"></i>
+                                    Ayarları Kaydet
+                                </button>
+                                <button class="btn btn-success">
+                                    <i class="fas fa-play me-2"></i>
+                                    Şimdi Yedek Al
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string activeTab = "general";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Admin kontrolü
+        if (!AuthService.IsAdmin)
+        {
+            // Unauthorized access log
+            // NavigationManager.NavigateTo("/dashboard");
+        }
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+}
+
+@* Dosya Yolu: TeknikServisApp/Components/Pages/Services/ServiceDetail.razor *@
+@page "/services/{serviceId:int}"
+@using TeknikServisApp.Services
+@using TeknikServisApp.Data.Models
+@using TeknikServisApp.Enums
+@using Syncfusion.Blazor.Buttons
+@inject ServiceManagementService ServiceManagementService
+@inject PdfService PdfService
+@inject PrintService PrintService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Servis #@ServiceId - Teknik Servis</PageTitle>
+
+<div class="service-detail-container">
+    
+    @* Breadcrumb ve başlık *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item">
+                        <a href="/services/pending">Servisler</a>
+                    </li>
+                    <li class="breadcrumb-item active">
+                        Servis #@ServiceId
+                    </li>
+                </ol>
+            </nav>
+            
+            @if (service != null)
+            {
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <h2 class="page-title">
+                            <i class="fas fa-clipboard-list me-3 text-primary"></i>
+                            Servis Detayı #@service.Id
+                        </h2>
+                        <div class="service-meta">
+                            <span class="badge @GetStatusBadgeClass(service.Status) me-2">
+                                @GetStatusDisplayName(service.Status)
+                            </span>
+                            <span class="text-muted">
+                                @service.Customer.CompanyName • 
+                                @service.CreatedDate.ToString("dd.MM.yyyy HH:mm")
+                            </span>
+                        </div>
+                    </div>
+                    <div class="action-buttons">
+                        @if (AuthService.IsSupervisorOrAdmin)
+                        {
+                            <button class="btn btn-outline-secondary me-2" @onclick="EditService">
+                                <i class="fas fa-edit me-2"></i>
+                                Düzenle
+                            </button>
+                        }
+                        <div class="dropdown">
+                            <button class="btn btn-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="fas fa-ellipsis-v me-2"></i>
+                                İşlemler
+                            </button>
+                            <ul class="dropdown-menu">
+                                <li><a class="dropdown-item" @onclick="GeneratePDF">
+                                    <i class="fas fa-file-pdf me-2"></i>PDF İndir
+                                </a></li>
+                                <li><a class="dropdown-item" @onclick="GenerateReceipt">
+                                    <i class="fas fa-receipt me-2"></i>Makbuz Yazdır
+                                </a></li>
+                                @if (AuthService.IsSupervisorOrAdmin && service.Status == ServiceStatus.InProgress)
+                                {
+                                    <li><hr class="dropdown-divider"></li>
+                                    <li><a class="dropdown-item text-success" @onclick="CompleteService">
+                                        <i class="fas fa-check me-2"></i>Servisi Tamamla
+                                    </a></li>
+                                }
+                                @if (AuthService.IsAdmin && service.Status == ServiceStatus.WaitingApproval)
+                                {
+                                    <li><a class="dropdown-item text-warning" @onclick="ApproveService">
+                                        <i class="fas fa-thumbs-up me-2"></i>Servisi Onayla
+                                    </a></li>
+                                }
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (isLoading)
+    {
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Yükleniyor...</span>
+            </div>
+            <div class="mt-3">
+                <p class="text-muted">Servis detayları yükleniyor...</p>
+            </div>
+        </div>
+    }
+    else if (service == null)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Servis bulunamadı veya erişim yetkiniz bulunmuyor.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @* Sol kolon - Ana bilgiler *@
+            <div class="col-lg-8 col-12">
+                
+                @* Servis bilgileri *@
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-info-circle me-2"></i>
+                            Servis Bilgileri
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <strong>Servis Numarası:</strong>
+                                <div class="text-muted">#@service.Id</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Durum:</strong>
+                                <div>
+                                    <span class="badge @GetStatusBadgeClass(service.Status)">
+                                        @GetStatusDisplayName(service.Status)
+                                    </span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Oluşturulma Tarihi:</strong>
+                                <div class="text-muted">@service.CreatedDate.ToString("dd.MM.yyyy HH:mm")</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Planlanan Tarih:</strong>
+                                <div class="text-muted">@service.ScheduledDateTime.ToString("dd.MM.yyyy HH:mm")</div>
+                            </div>
+                            @if (service.ServiceStartDateTime.HasValue)
+                            {
+                                <div class="col-md-6">
+                                    <strong>Başlangıç Tarihi:</strong>
+                                    <div class="text-muted">@service.ServiceStartDateTime.Value.ToString("dd.MM.yyyy HH:mm")</div>
+                                </div>
+                            }
+                            @if (service.ServiceEndDateTime.HasValue)
+                            {
+                                <div class="col-md-6">
+                                    <strong>Bitiş Tarihi:</strong>
+                                    <div class="text-muted">@service.ServiceEndDateTime.Value.ToString("dd.MM.yyyy HH:mm")</div>
+                                </div>
+                            }
+                            <div class="col-md-6">
+                                <strong>Oluşturan:</strong>
+                                <div class="text-muted">@service.CreatedByUser.Username</div>
+                            </div>
+                            @if (service.ServiceAmount.HasValue)
+                            {
+                                <div class="col-md-6">
+                                    <strong>Servis Tutarı:</strong>
+                                    <div class="text-success fw-bold">
+                                        @service.ServiceAmount.Value.ToString("C", new System.Globalization.CultureInfo("tr-TR"))
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                        
+                        @if (!string.IsNullOrEmpty(service.Notes))
+                        {
+                            <hr />
+                            <div>
+                                <strong>Servis Notları:</strong>
+                                <div class="text-muted mt-2">@service.Notes</div>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* Müşteri bilgileri *@
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-building me-2"></i>
+                            Müşteri Bilgileri
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <strong>Firma Adı:</strong>
+                                <div class="text-muted">@service.Customer.CompanyName</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Firma Tipi:</strong>
+                                <div class="text-muted">
+                                    @(service.Customer.CompanyType == CompanyType.Corporate ? "Kurumsal" : "Bireysel")
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Yetkili Kişi:</strong>
+                                <div class="text-muted">@service.Customer.AuthorizedPersonName</div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Telefon:</strong>
+                                <div class="text-muted">
+                                    <a href="tel:@service.Customer.PhoneNumber" class="text-decoration-none">
+                                        <i class="fas fa-phone me-1 text-success"></i>
+                                        @service.Customer.PhoneNumber
+                                    </a>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <strong>Vergi No/TCKN:</strong>
+                                <div class="text-muted">@service.Customer.TaxNumber</div>
+                            </div>
+                            @if (!string.IsNullOrEmpty(service.Customer.TaxOffice))
+                            {
+                                <div class="col-md-6">
+                                    <strong>Vergi Dairesi:</strong>
+                                    <div class="text-muted">@service.Customer.TaxOffice</div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+
+                @* Yapılacaklar listesi *@
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-tasks me-2"></i>
+                            Yapılacaklar Listesi
+                        </h5>
+                        @if (service.ServiceTasks.Any())
+                        {
+                            var completedCount = service.ServiceTasks.Count(t => t.IsCompleted);
+                            var totalCount = service.ServiceTasks.Count;
+                            <small class="text-muted">
+                                @completedCount/@totalCount tamamlandı
+                            </small>
+                        }
+                    </div>
+                    <div class="card-body">
+                        @if (service.ServiceTasks.Any())
+                        {
+                            @foreach (var task in service.ServiceTasks.OrderBy(t => t.IsCompleted).ThenByDescending(t => t.Priority))
+                            {
+                                <div class="task-item border-start border-3 @GetTaskBorderClass(task.Priority) ps-3 mb-3 @(task.IsCompleted ? "task-completed" : "")">
+                                    <div class="d-flex justify-content-between align-items-start">
+                                        <div class="flex-grow-1">
+                                            <div class="d-flex align-items-center mb-2">
+                                                @if (task.IsCompleted)
+                                                {
+                                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                                }
+                                                else
+                                                {
+                                                    <i class="fas fa-circle text-muted me-2"></i>
+                                                }
+                                                <span class="badge @GetPriorityBadgeClass(task.Priority) me-2">
+                                                    @GetPriorityDisplayName(task.Priority)
+                                                </span>
+                                                @if (task.IsCompleted)
+                                                {
+                                                    <small class="text-muted">
+                                                        @task.CompletedDate?.ToString("dd.MM.yyyy")
+                                                    </small>
+                                                }
+                                            </div>
+                                            <p class="task-description mb-1 @(task.IsCompleted ? "text-decoration-line-through text-muted" : "")">
+                                                @task.Description
+                                            </p>
+                                            @if (task.IsCompleted && task.CompletedByUser != null)
+                                            {
+                                                <small class="text-muted">
+                                                    Tamamlayan: @task.CompletedByUser.Username
+                                                </small>
+                                            }
+                                        </div>
+                                        @if (!task.IsCompleted && CanUserModifyService())
+                                        {
+                                            <button class="btn btn-sm btn-outline-success" 
+                                                   @onclick="() => CompleteTask(task.Id)">
+                                                <i class="fas fa-check"></i>
+                                            </button>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-clipboard-list fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">Görev bulunmuyor</h6>
+                                <p class="text-muted">Bu servis için henüz görev tanımlanmamış.</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* Sağ kolon - Özet ve işlemler *@
+            <div class="col-lg-4 col-12">
+                
+                @* Hızlı özet *@
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Servis Özeti
+                        </h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <span>Durum:</span>
+                            <span class="badge @GetStatusBadgeClass(service.Status)">
+                                @GetStatusDisplayName(service.Status)
+                            </span>
+                        </div>
+                        
+                        @if (service.ServiceTasks.Any())
+                        {
+                            var completedTasks = service.ServiceTasks.Count(t => t.IsCompleted);
+                            var totalTasks = service.ServiceTasks.Count;
+                            var progressPercentage = (double)completedTasks / totalTasks * 100;
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-1">
+                                    <span>İlerleme:</span>
+                                    <span>@completedTasks/@totalTasks</span>
+                                </div>
+                                <div class="progress">
+                                    <div class="progress-bar" style="width: @(progressPercentage)%"></div>
+                                </div>
+                            </div>
+                        }
+                        
+                        @if (service.ServiceAmount.HasValue)
+                        {
+                            <div class="d-flex justify-content-between align-items-center mb-3">
+                                <span>Tutar:</span>
+                                <strong class="text-success">
+                                    @service.ServiceAmount.Value.ToString("C", new System.Globalization.CultureInfo("tr-TR"))
+                                </strong>
+                            </div>
+                        }
+                        
+                        @if (service.ServiceStartDateTime.HasValue)
+                        {
+                            var duration = (service.ServiceEndDateTime ?? DateTime.Now) - service.ServiceStartDateTime.Value;
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Süre:</span>
+                                <span>@duration.Days gün @duration.Hours saat</span>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* Atanmış personel *@
+                @if (service.ServiceUsers.Any(su => su.IsActive))
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h6 class="card-title mb-0">
+                                <i class="fas fa-users me-2"></i>
+                                Atanmış Personel
+                            </h6>
+                        </div>
+                        <div class="card-body">
+                            @foreach (var serviceUser in service.ServiceUsers.Where(su => su.IsActive))
+                            {
+                                <div class="d-flex align-items-center mb-2">
+                                    <div class="me-2">
+                                        @if (!string.IsNullOrEmpty(serviceUser.User.ProfileImage))
+                                        {
+                                            <img src="data:image/jpeg;base64,@serviceUser.User.ProfileImage" 
+                                                 class="rounded-circle" width="32" height="32" alt="@serviceUser.User.Username" />
+                                        }
+                                        else
+                                        {
+                                            <div class="bg-primary rounded-circle text-white d-flex align-items-center justify-content-center" 
+                                                 style="width: 32px; height: 32px;">
+                                                @serviceUser.User.Username.Substring(0, 1).ToUpper()
+                                            </div>
+                                        }
+                                    </div>
+                                    <div>
+                                        <div class="fw-bold">@serviceUser.User.Username</div>
+                                        <small class="text-muted">
+                                            @serviceUser.AssignedDate.ToString("dd.MM.yyyy") tarihinde atandı
+                                        </small>
+                                    </div>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int ServiceId { get; set; }
+
+    private Service? service;
+    private bool isLoading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadServiceDetails();
+    }
+
+    private async Task LoadServiceDetails()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            service = await ServiceManagementService.GetServiceWithDetailsAsync(ServiceId);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Servis yükleme hatası: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private void EditService()
+    {
+        NavigationManager.NavigateTo($"/services/{ServiceId}/edit");
+    }
+
+    private async Task GeneratePDF()
+    {
+        if (service == null) return;
+
+        try
+        {
+            var pdfBytes = await PdfService.GenerateServiceReportAsync(service);
+            var fileName = $"Servis_Raporu_{service.Id}_{DateTime.Now:yyyyMMdd}.pdf";
+            
+            await JSRuntime.InvokeVoidAsync("downloadFile", fileName, "application/pdf", pdfBytes);
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "PDF oluşturulurken hata oluştu.");
+        }
+    }
+
+    private async Task GenerateReceipt()
+    {
+        if (service == null) return;
+
+        try
+        {
+            var receiptBytes = await PrintService.GenerateThermalReceiptAsync(service);
+            var fileName = $"Makbuz_{service.Id}_{DateTime.Now:yyyyMMdd}.txt";
+            
+            // Test için dosyaya kaydet
+            await PrintService.SaveReceiptToFileAsync(receiptBytes, fileName);
+            await JSRuntime.InvokeVoidAsync("alert", $"Makbuz {fileName} olarak kaydedildi.");
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Makbuz oluşturulurken hata oluştu.");
+        }
+    }
+
+    private async Task CompleteService()
+    {
+        if (service == null) return;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            "Bu servisi tamamlamak istediğinizden emin misiniz?");
+        
+        if (confirmed)
+        {
+            try
+            {
+                var result = await ServiceManagementService.ChangeServiceStatusAsync(
+                    ServiceId, ServiceStatus.WaitingApproval, AuthService.CurrentUser!.Id);
+                
+                if (result.IsSuccess)
+                {
+                    await LoadServiceDetails();
+                    await JSRuntime.InvokeVoidAsync("alert", "Servis tamamlandı ve onay beklemede.");
+                }
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "İşlem sırasında hata oluştu.");
+            }
+        }
+    }
+
+    private async Task ApproveService()
+    {
+        if (service == null) return;
+
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", 
+            "Bu servisi onaylamak istediğinizden emin misiniz?");
+        
+        if (confirmed)
+        {
+            try
+            {
+                var result = await ServiceManagementService.ChangeServiceStatusAsync(
+                    ServiceId, ServiceStatus.Completed, AuthService.CurrentUser!.Id);
+                
+                if (result.IsSuccess)
+                {
+                    await LoadServiceDetails();
+                    await JSRuntime.InvokeVoidAsync("alert", "Servis onaylandı ve tamamlandı.");
+                }
+            }
+            catch (Exception ex)
+            {
+                await JSRuntime.InvokeVoidAsync("alert", "İşlem sırasında hata oluştu.");
+            }
+        }
+    }
+
+    private async Task CompleteTask(int taskId)
+    {
+        try
+        {
+            var result = await ServiceManagementService.CompleteTaskAsync(taskId, AuthService.CurrentUser!.Id);
+            
+            if (result.IsSuccess)
+            {
+                await LoadServiceDetails();
+            }
+        }
+        catch (Exception ex)
+        {
+            await JSRuntime.InvokeVoidAsync("alert", "Görev tamamlanırken hata oluştu.");
+        }
+    }
+
+    private bool CanUserModifyService()
+    {
+        return AuthService.IsSupervisorOrAdmin || 
+               (service?.ServiceUsers.Any(su => su.UserId == AuthService.CurrentUser?.Id && su.IsActive) ?? false);
+    }
+
+    // Helper metodları
+    private string GetStatusBadgeClass(ServiceStatus status)
+    {
+        return status switch
+        {
+            ServiceStatus.Pending => "bg-warning text-dark",
+            ServiceStatus.InProgress => "bg-info text-white",
+            ServiceStatus.WaitingApproval => "bg-secondary text-white",
+            ServiceStatus.Completed => "bg-success text-white",
+            ServiceStatus.Cancelled => "bg-danger text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetStatusDisplayName(ServiceStatus status)
+    {
+        return status switch
+        {
+            ServiceStatus.Pending => "Bekleyen",
+            ServiceStatus.InProgress => "Devam Ediyor",
+            ServiceStatus.WaitingApproval => "Onay Bekliyor",
+            ServiceStatus.Completed => "Tamamlandı",
+            ServiceStatus.Cancelled => "İptal Edildi",
+            _ => "Bilinmiyor"
+        };
+    }
+
+    private string GetTaskBorderClass(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Critical => "border-danger",
+            Priority.High => "border-warning",
+            Priority.Normal => "border-info",
+            Priority.Low => "border-secondary",
+            _ => "border-secondary"
+        };
+    }
+
+    private string GetPriorityBadgeClass(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Critical => "bg-danger",
+            Priority.High => "bg-warning text-dark",
+            Priority.Normal => "bg-info",
+            Priority.Low => "bg-secondary",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetPriorityDisplayName(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Low => "Düşük",
+            Priority.Normal => "Normal",
+            Priority.High => "Yüksek",
+            Priority.Critical => "Kritik",
+            _ => "Normal"
+        };
+    }

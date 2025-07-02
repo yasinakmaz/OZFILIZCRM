@@ -1,0 +1,313 @@
+﻿@page "/login"
+@using CRM.DTOs
+@using CRM.Services
+@using System.ComponentModel.DataAnnotations
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Teknik Servis - Giriş</PageTitle>
+
+@* 
+    Ana login container - tam ekranı kaplar ve içeriği ortalar
+    Bootstrap flex utilities kullanarak responsive tasarım
+*@
+<div class="login-container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="container">
+        <div class="row justify-content-center">
+            <div class="col-12 col-md-6 col-lg-4">
+                @* 
+                    Login kartı - modern ve temiz tasarım
+                    Shadow ve border-radius ile profesyonel görünüm
+                *@
+                <div class="card shadow-lg border-0">
+                    <div class="card-header bg-primary text-white text-center py-4">
+                        <h3 class="mb-0">
+                            <i class="fas fa-tools me-2"></i>
+                            Teknik Servis
+                        </h3>
+                        <p class="mb-0 mt-2 opacity-75">Yönetim Sistemi</p>
+                    </div>
+
+                    <div class="card-body p-4">
+                        @* 
+                            EditForm Blazor'da form validation için standart yaklaşım
+                            Model binding ve otomatik validation sağlar
+                        *@
+                        <EditForm Model="@loginModel" OnValidSubmit="@HandleLogin" FormName="LoginForm">
+                            <DataAnnotationsValidator />
+
+                            @* Hata mesajları gösterimi *@
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                                    <i class="fas fa-exclamation-triangle me-2"></i>
+                                    @errorMessage
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            }
+
+                            @* Başarı mesajları gösterimi *@
+                            @if (!string.IsNullOrEmpty(successMessage))
+                            {
+                                <div class="alert alert-success alert-dismissible fade show" role="alert">
+                                    <i class="fas fa-check-circle me-2"></i>
+                                    @successMessage
+                                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                                </div>
+                            }
+
+                            @* Email input field *@
+                            <div class="mb-3">
+                                <label for="email" class="form-label">
+                                    <i class="fas fa-envelope me-1"></i>
+                                    Email Adresi
+                                </label>
+                                <InputText id="email"
+                                           class="form-control form-control-lg"
+                                           @bind-Value="loginModel.Email"
+                                           placeholder="ornek@email.com"
+                                           disabled="@isLoading" />
+                                <ValidationMessage For="@(() => loginModel.Email)" class="text-danger small mt-1" />
+                            </div>
+
+                            @* Password input field *@
+                            <div class="mb-3">
+                                <label for="password" class="form-label">
+                                    <i class="fas fa-lock me-1"></i>
+                                    Şifre
+                                </label>
+                                <div class="input-group">
+                                    <InputText id="password"
+                                               type="@(showPassword ? "text" : "password")"
+                                               class="form-control form-control-lg"
+                                               @bind-Value="loginModel.Password"
+                                               placeholder="Şifrenizi giriniz"
+                                               disabled="@isLoading" />
+                                    <button class="btn btn-outline-secondary"
+                                            type="button"
+                                            @onclick="TogglePasswordVisibility"
+                                            disabled="@isLoading">
+                                        <i class="fas @(showPassword ? "fa-eye-slash" : "fa-eye")"></i>
+                                    </button>
+                                </div>
+                                <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1" />
+                            </div>
+
+                            @* Beni hatırla checkbox'ı *@
+                            <div class="mb-4">
+                                <div class="form-check">
+                                    <InputCheckbox id="rememberMe"
+                                                   class="form-check-input"
+                                                   @bind-Value="loginModel.RememberMe"
+                                                   disabled="@isLoading" />
+                                    <label class="form-check-label" for="rememberMe">
+                                        <i class="fas fa-remember me-1"></i>
+                                        Beni Hatırla
+                                    </label>
+                                    <small class="text-muted d-block mt-1">
+                                        Bir sonraki girişinizde bilgileriniz otomatik doldurulur
+                                    </small>
+                                </div>
+                            </div>
+
+                            @* Submit button - loading state ile *@
+                            <div class="d-grid gap-2">
+                                <button type="submit"
+                                        class="btn btn-primary btn-lg"
+                                        disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                                        <span>Giriş yapılıyor...</span>
+                                    }
+                                    else
+                                    {
+                                        <i class="fas fa-sign-in-alt me-2"></i>
+                                        <span>Giriş Yap</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+                    </div>
+
+                    @* Footer kısmı - sistem bilgileri *@
+                    <div class="card-footer text-center bg-light">
+                        <small class="text-muted">
+                            <i class="fas fa-shield-alt me-1"></i>
+                            Güvenli bağlantı ile korunmaktadır
+                        </small>
+                    </div>
+                </div>
+
+                @* Debug bilgileri - sadece development ortamında gösterilir *@
+                @if (isDevelopment)
+                {
+                    <div class="card mt-3 border-warning">
+                        <div class="card-header bg-warning text-dark">
+                            <small><i class="fas fa-code me-1"></i> Geliştirici Bilgileri</small>
+                        </div>
+                        <div class="card-body py-2">
+                            <small class="text-muted">
+                                Test için: admin@test.com / 123456
+                            </small>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+@* CSS stil tanımlamaları *@
+<style>
+    /* Login sayfası özel stilleri */
+    .login-container {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+    }
+
+    .card {
+        border-radius: 15px;
+        backdrop-filter: blur(10px);
+    }
+
+    .card-header {
+        border-radius: 15px 15px 0 0 !important;
+        background: linear-gradient(45deg, #007bff, #0056b3) !important;
+    }
+
+    .form-control:focus {
+        border-color: #007bff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+
+    .btn-primary {
+        background: linear-gradient(45deg, #007bff, #0056b3);
+        border: none;
+        transition: all 0.3s ease;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+    }
+
+    .alert {
+        border: none;
+        border-radius: 10px;
+    }
+
+    /* Responsive düzenlemeler */
+    @media (max-width: 576px) {
+        .login-container {
+            padding: 15px;
+        }
+
+        .card-body {
+            padding: 20px !important;
+        }
+    }
+</style>
+
+@code {
+    // Component state variables
+    private LoginDto loginModel = new();
+    private bool isLoading = false;
+    private bool showPassword = false;
+    private string errorMessage = string.Empty;
+    private string successMessage = string.Empty;
+    private bool isDevelopment = false;
+
+    /// <summary>
+    /// Component başlatıldığında çalışır
+    /// Kaydedilmiş giriş bilgilerini yükler ve development mod kontrolü yapar
+    /// </summary>
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Development ortamı kontrolü
+#if DEBUG
+            isDevelopment = true;
+#endif
+
+            // Daha önce kaydedilmiş giriş bilgilerini kontrol et
+            var savedCredentials = await AuthService.GetSavedCredentialsAsync();
+            if (savedCredentials != null)
+            {
+                loginModel = savedCredentials;
+                successMessage = "Kaydedilmiş giriş bilgileriniz yüklendi.";
+            }
+
+            // Eğer kullanıcı zaten giriş yapmışsa dashboard'a yönlendir
+            if (AuthService.IsAuthenticated)
+            {
+                NavigationManager.NavigateTo("/dashboard");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Başlatma sırasında bir hata oluştu. Lütfen sayfayı yenileyin.";
+            Console.WriteLine($"Login başlatma hatası: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Şifre görünürlüğünü değiştirir
+    /// UX için önemli - kullanıcı şifresini kontrol edebilir
+    /// </summary>
+    private void TogglePasswordVisibility()
+    {
+        showPassword = !showPassword;
+    }
+
+    /// <summary>
+    /// Login form submit edildiğinde çalışır
+    /// AuthService kullanarak giriş işlemini gerçekleştirir
+    /// </summary>
+    private async Task HandleLogin()
+    {
+        try
+        {
+            // Hata mesajlarını temizle
+            errorMessage = string.Empty;
+            successMessage = string.Empty;
+            isLoading = true;
+
+            // IP adresini al (gerçek projede client IP'si alınmalı)
+            loginModel.IpAddress = "127.0.0.1";
+
+            // AuthService üzerinden giriş denemesi
+            var loginResult = await AuthService.LoginAsync(loginModel);
+
+            if (loginResult)
+            {
+                successMessage = "Giriş başarılı! Yönlendiriliyorsunuz...";
+
+                // UI güncellemesi için kısa bir bekleme
+                await Task.Delay(1000);
+
+                // Başarılı girişte dashboard'a yönlendir
+                NavigationManager.NavigateTo("/dashboard");
+            }
+            else
+            {
+                errorMessage = "Email adresi veya şifre hatalı. Lütfen kontrol ediniz.";
+
+                // Başarısız girişte şifreyi temizle (güvenlik için)
+                loginModel.Password = string.Empty;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Giriş sırasında beklenmeyen bir hata oluştu. Lütfen tekrar deneyiniz.";
+            Console.WriteLine($"Login hatası: {ex.Message}");
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged(); // UI'ı güncelle
+        }
+    }
+}

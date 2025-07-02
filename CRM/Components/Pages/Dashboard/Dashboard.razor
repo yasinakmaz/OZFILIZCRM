@@ -1,0 +1,679 @@
+﻿@* Dosya Yolu: TeknikServisApp/Components/Pages/Dashboard/Dashboard.razor *@
+@page "/dashboard"
+@using TeknikServisApp.Services
+@using TeknikServisApp.Enums
+@using Syncfusion.Blazor.Charts
+@using Syncfusion.Blazor.Cards
+@using Syncfusion.Blazor.Grids
+@inject DashboardService DashboardService
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dashboard - Teknik Servis</PageTitle>
+
+@* 
+    Ana dashboard container - responsive grid sistemini kullanır
+    Her widget kendi grid alanında yer alır
+*@
+<div class="dashboard-container">
+    
+    @* Yükleme göstergesi *@
+    @if (isLoading)
+    {
+        <div class="loading-overlay">
+            <div class="text-center">
+                <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;">
+                    <span class="visually-hidden">Yükleniyor...</span>
+                </div>
+                <div class="mt-3">
+                    <h5>Dashboard Yükleniyor...</h5>
+                    <p class="text-muted">Veriler hazırlanıyor, lütfen bekleyin.</p>
+                </div>
+            </div>
+        </div>
+    }
+    else
+    {
+        @* Dashboard Header *@
+        <div class="row mb-4">
+            <div class="col-12">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h2 class="dashboard-title">
+                            <i class="fas fa-chart-pie me-3 text-primary"></i>
+                            Dashboard
+                        </h2>
+                        <p class="text-muted mb-0">
+                            Hoş geldiniz, @AuthService.CurrentUser?.Username! 
+                            Son güncelleme: @DateTime.Now.ToString("dd.MM.yyyy HH:mm")
+                        </p>
+                    </div>
+                    <div>
+                        <button class="btn btn-outline-primary" @onclick="RefreshDashboard">
+                            <i class="fas fa-sync-alt me-2"></i>
+                            Yenile
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* Ana İstatistik Kartları *@
+        <div class="row mb-4">
+            <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                <div class="stats-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="stats-icon bg-primary">
+                                <i class="fas fa-clipboard-list text-white"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3 class="stats-number">@dashboardStats.TotalServices</h3>
+                                <p class="stats-label">Toplam Servis</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                <div class="stats-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="stats-icon bg-success">
+                                <i class="fas fa-building text-white"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3 class="stats-number">@dashboardStats.TotalCustomers</h3>
+                                <p class="stats-label">Aktif Müşteri</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                <div class="stats-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="stats-icon bg-warning">
+                                <i class="fas fa-clock text-white"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3 class="stats-number">@dashboardStats.PendingServices</h3>
+                                <p class="stats-label">Bekleyen Servis</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                <div class="stats-card card h-100">
+                    <div class="card-body">
+                        <div class="d-flex align-items-center">
+                            <div class="stats-icon bg-info">
+                                <i class="fas fa-tools text-white"></i>
+                            </div>
+                            <div class="stats-content">
+                                <h3 class="stats-number">@dashboardStats.ActiveServices</h3>
+                                <p class="stats-label">Aktif Servis</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        @* İkinci sıra istatistikler - Sadece admin ve supervisor için *@
+        @if (AuthService.IsSupervisorOrAdmin)
+        {
+            <div class="row mb-4">
+                <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                    <div class="stats-card card h-100 border-success">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stats-icon bg-success">
+                                    <i class="fas fa-check-circle text-white"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3 class="stats-number">@dashboardStats.CompletedServicesThisMonth</h3>
+                                    <p class="stats-label">Bu Ay Tamamlanan</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                    <div class="stats-card card h-100 border-danger">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stats-icon bg-danger">
+                                    <i class="fas fa-exclamation-triangle text-white"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3 class="stats-number">@dashboardStats.OverdueServices</h3>
+                                    <p class="stats-label">Geciken Servis</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                    <div class="stats-card card h-100 border-primary">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stats-icon bg-primary">
+                                    <i class="fas fa-lira-sign text-white"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3 class="stats-number">@dashboardStats.TotalRevenueThisMonth.ToString("C", new System.Globalization.CultureInfo("tr-TR"))</h3>
+                                    <p class="stats-label">Bu Ay Ciro</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-xl-3 col-lg-6 col-md-6 col-12 mb-3">
+                    <div class="stats-card card h-100 border-info">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center">
+                                <div class="stats-icon bg-info">
+                                    <i class="fas fa-users text-white"></i>
+                                </div>
+                                <div class="stats-content">
+                                    <h3 class="stats-number">@dashboardStats.TotalUsers</h3>
+                                    <p class="stats-label">Aktif Kullanıcı</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @* Ana içerik alanı - 2 kolon layout *@
+        <div class="row">
+            @* Sol kolon *@
+            <div class="col-lg-8 col-12">
+                
+                @* Aylık Trend Grafiği *@
+                @if (AuthService.IsSupervisorOrAdmin)
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-chart-line me-2"></i>
+                                Aylık Servis Trendi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <SfChart ID="monthlyTrendChart" Height="300px">
+                                <ChartPrimaryXAxis ValueType="Syncfusion.Blazor.Charts.ValueType.Category" />
+                                <ChartPrimaryYAxis />
+                                <ChartSeriesCollection>
+                                    <ChartSeries DataSource="@monthlyTrends" XName="MonthName" YName="TotalServices" 
+                                                Type="ChartSeriesType.Column" Name="Toplam Servis" Fill="#007bff">
+                                        <ChartMarker Visible="true" />
+                                    </ChartSeries>
+                                    <ChartSeries DataSource="@monthlyTrends" XName="MonthName" YName="CompletedServices" 
+                                                Type="ChartSeriesType.Line" Name="Tamamlanan" Fill="#28a745">
+                                        <ChartMarker Visible="true" />
+                                    </ChartSeries>
+                                </ChartSeriesCollection>
+                                <ChartTooltipSettings Enable="true" />
+                                <ChartLegendSettings Visible="true" Position="LegendPosition.Top" />
+                            </SfChart>
+                        </div>
+                    </div>
+                }
+
+                @* Son Servisler Tablosu *@
+                <div class="card mb-4">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-clock me-2"></i>
+                            Son Servisler
+                        </h5>
+                        <a href="/services" class="btn btn-sm btn-outline-primary">
+                            Tümünü Gör <i class="fas fa-arrow-right ms-1"></i>
+                        </a>
+                    </div>
+                    <div class="card-body p-0">
+                        @if (recentServices.Any())
+                        {
+                            <div class="table-responsive">
+                                <table class="table table-hover mb-0">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Servis #</th>
+                                            <th>Müşteri</th>
+                                            <th>Durum</th>
+                                            <th>Planlanan Tarih</th>
+                                            <th>Tutar</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var service in recentServices)
+                                        {
+                                            <tr style="cursor: pointer;" @onclick="() => NavigateToService(service.ServiceId)">
+                                                <td><strong>#@service.ServiceId</strong></td>
+                                                <td>@service.CustomerName</td>
+                                                <td>
+                                                    <span class="badge @GetStatusBadgeClass(service.Status)">
+                                                        @GetStatusDisplayName(service.Status)
+                                                    </span>
+                                                </td>
+                                                <td>@service.ScheduledDateTime.ToString("dd.MM.yyyy HH:mm")</td>
+                                                <td>
+                                                    @if (service.ServiceAmount.HasValue)
+                                                    {
+                                                        @service.ServiceAmount.Value.ToString("C", new System.Globalization.CultureInfo("tr-TR"))
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="text-muted">Belirtilmemiş</span>
+                                                    }
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                <h6 class="text-muted">Henüz servis kaydı bulunmuyor</h6>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            @* Sağ kolon *@
+            <div class="col-lg-4 col-12">
+                
+                @* Servis Durumu Dağılımı - Pie Chart *@
+                <div class="card mb-4">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">
+                            <i class="fas fa-chart-pie me-2"></i>
+                            Servis Durumu Dağılımı
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        @if (statusDistribution.Any())
+                        {
+                            <SfAccumulationChart ID="statusPieChart" Height="250px">
+                                <AccumulationChartSeriesCollection>
+                                    <AccumulationChartSeries DataSource="@GetPieChartData()" XName="Status" YName="Count" 
+                                                           Type="AccumulationType.Pie" InnerRadius="30%">
+                                        <AccumulationDataLabelSettings Visible="true" Name="Status" />
+                                    </AccumulationChartSeries>
+                                </AccumulationChartSeriesCollection>
+                                <AccumulationChartTooltipSettings Enable="true" />
+                                <AccumulationChartLegendSettings Visible="true" Position="LegendPosition.Bottom" />
+                            </SfAccumulationChart>
+                        }
+                        else
+                        {
+                            <div class="text-center py-4">
+                                <i class="fas fa-chart-pie fa-2x text-muted mb-2"></i>
+                                <p class="text-muted mb-0">Henüz veri bulunmuyor</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                @* Bekleyen Görevler - Sadece teknisyenler için *@
+                @if (!AuthService.IsAdmin || AuthService.HasRole(UserRole.Technician))
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-tasks me-2"></i>
+                                Bekleyen Görevlerim
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (pendingTasks.Any())
+                            {
+                                @foreach (var task in pendingTasks)
+                                {
+                                    <div class="task-item border-start border-3 @GetPriorityBorderClass(task.Priority) ps-3 mb-3">
+                                        <div class="d-flex justify-content-between align-items-start">
+                                            <div class="flex-grow-1">
+                                                <h6 class="task-title mb-1">@task.CustomerName</h6>
+                                                <p class="task-description text-muted mb-1">@task.Description</p>
+                                                <small class="text-muted">
+                                                    <i class="fas fa-calendar me-1"></i>
+                                                    @task.CreatedDate.ToString("dd.MM.yyyy")
+                                                </small>
+                                            </div>
+                                            <span class="badge @GetPriorityBadgeClass(task.Priority)">
+                                                @GetPriorityDisplayName(task.Priority)
+                                            </span>
+                                        </div>
+                                    </div>
+                                }
+                                <div class="text-center mt-3">
+                                    <a href="/services/active" class="btn btn-sm btn-primary">
+                                        Tüm Görevleri Gör
+                                    </a>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-3">
+                                    <i class="fas fa-check-circle fa-2x text-success mb-2"></i>
+                                    <h6 class="text-success">Harika!</h6>
+                                    <p class="text-muted mb-0">Bekleyen göreviniz bulunmuyor.</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+
+                @* Top Müşteriler - Sadece admin ve supervisor için *@
+                @if (AuthService.IsSupervisorOrAdmin)
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-star me-2"></i>
+                                Top Müşteriler
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (topCustomers.Any())
+                            {
+                                @foreach (var customer in topCustomers.Take(5))
+                                {
+                                    <div class="customer-item d-flex justify-content-between align-items-center mb-3">
+                                        <div class="flex-grow-1">
+                                            <h6 class="customer-name mb-1">@customer.CompanyName</h6>
+                                            <small class="text-muted">
+                                                @customer.TotalServices servis • 
+                                                @customer.TotalRevenue.ToString("C", new System.Globalization.CultureInfo("tr-TR"))
+                                            </small>
+                                        </div>
+                                        <div class="customer-badge">
+                                            <span class="badge bg-primary">@customer.TotalServices</span>
+                                        </div>
+                                    </div>
+                                }
+                            }
+                            else
+                            {
+                                <div class="text-center py-3">
+                                    <i class="fas fa-building fa-2x text-muted mb-2"></i>
+                                    <p class="text-muted mb-0">Henüz müşteri verisi yok</p>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
+        @* Admin için kullanıcı performans tablosu *@
+        @if (AuthService.IsAdmin)
+        {
+            <div class="row mt-4">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-users me-2"></i>
+                                Kullanıcı Performans Sıralaması (Son 30 Gün)
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            @if (userPerformance.Any())
+                            {
+                                <div class="table-responsive">
+                                    <table class="table table-striped">
+                                        <thead>
+                                            <tr>
+                                                <th>#</th>
+                                                <th>Kullanıcı</th>
+                                                <th>Toplam Servis</th>
+                                                <th>Tamamlanan</th>
+                                                <th>Aktif</th>
+                                                <th>Tamamlama Oranı</th>
+                                                <th>Ort. Tamamlama Süresi</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            @{int rank = 1;}
+                                            @foreach (var user in userPerformance.Take(10))
+                                            {
+                                                <tr>
+                                                    <td><strong>@rank</strong></td>
+                                                    <td>@user.Username</td>
+                                                    <td>@user.TotalServices</td>
+                                                    <td>
+                                                        <span class="badge bg-success">@user.CompletedServices</span>
+                                                    </td>
+                                                    <td>
+                                                        <span class="badge bg-info">@user.ActiveServices</span>
+                                                    </td>
+                                                    <td>
+                                                        <div class="d-flex align-items-center">
+                                                            <div class="progress me-2" style="width: 60px; height: 8px;">
+                                                                <div class="progress-bar" style="width: @(user.CompletionRate)%"></div>
+                                                            </div>
+                                                            <small>@user.CompletionRate.ToString("F1")%</small>
+                                                        </div>
+                                                    </td>
+                                                    <td>@user.AverageCompletionDays.ToString("F1") gün</td>
+                                                </tr>
+                                                rank++;
+                                            }
+                                        </tbody>
+                                    </table>
+                                </div>
+                            }
+                            else
+                            {
+                                <div class="text-center py-4">
+                                    <i class="fas fa-chart-bar fa-3x text-muted mb-3"></i>
+                                    <h6 class="text-muted">Henüz performans verisi bulunmuyor</h6>
+                                </div>
+                            }
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+    }
+</div>
+
+@code {
+    // Component state variables
+    private bool isLoading = true;
+    private DashboardStatsDto dashboardStats = new();
+    private IEnumerable<UserPerformanceDto> userPerformance = new List<UserPerformanceDto>();
+    private IEnumerable<RecentServiceDto> recentServices = new List<RecentServiceDto>();
+    private IEnumerable<MonthlyTrendDto> monthlyTrends = new List<MonthlyTrendDto>();
+    private Dictionary<ServiceStatus, int> statusDistribution = new();
+    private IEnumerable<TopCustomerDto> topCustomers = new List<TopCustomerDto>();
+    private IEnumerable<PendingTaskDto> pendingTasks = new List<PendingTaskDto>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadDashboardData();
+    }
+
+    private async Task LoadDashboardData()
+    {
+        isLoading = true;
+        StateHasChanged();
+
+        try
+        {
+            // Ana istatistikleri yükle
+            dashboardStats = await DashboardService.GetDashboardStatsAsync();
+
+            // Role-based veri yükleme
+            var tasks = new List<Task>();
+
+            // Herkese ortak veriler
+            tasks.Add(LoadRecentServices());
+            tasks.Add(LoadStatusDistribution());
+
+            // Admin ve Supervisor için ek veriler
+            if (AuthService.IsSupervisorOrAdmin)
+            {
+                tasks.Add(LoadMonthlyTrends());
+                tasks.Add(LoadTopCustomers());
+            }
+
+            // Admin için kullanıcı performansı
+            if (AuthService.IsAdmin)
+            {
+                tasks.Add(LoadUserPerformance());
+            }
+
+            // Teknisyenler için bekleyen görevler
+            if (AuthService.CurrentUser != null)
+            {
+                tasks.Add(LoadPendingTasks());
+            }
+
+            await Task.WhenAll(tasks);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Dashboard yükleme hatası: {ex.Message}");
+            // Hata mesajı gösterimi burada eklenebilir
+        }
+        finally
+        {
+            isLoading = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task LoadRecentServices()
+    {
+        var userId = AuthService.HasRole(UserRole.Technician) ? AuthService.CurrentUser?.Id : null;
+        recentServices = await DashboardService.GetRecentServicesAsync(10, userId);
+    }
+
+    private async Task LoadStatusDistribution()
+    {
+        var userId = AuthService.HasRole(UserRole.Technician) ? AuthService.CurrentUser?.Id : null;
+        statusDistribution = await DashboardService.GetServiceStatusDistributionAsync(userId);
+    }
+
+    private async Task LoadMonthlyTrends()
+    {
+        monthlyTrends = await DashboardService.GetMonthlyTrendsAsync(6);
+    }
+
+    private async Task LoadTopCustomers()
+    {
+        topCustomers = await DashboardService.GetTopCustomersAsync(5);
+    }
+
+    private async Task LoadUserPerformance()
+    {
+        userPerformance = await DashboardService.GetUserPerformanceAsync();
+    }
+
+    private async Task LoadPendingTasks()
+    {
+        if (AuthService.CurrentUser != null)
+        {
+            pendingTasks = await DashboardService.GetPendingTasksAsync(AuthService.CurrentUser.Id, 5);
+        }
+    }
+
+    private async Task RefreshDashboard()
+    {
+        await LoadDashboardData();
+    }
+
+    private void NavigateToService(int serviceId)
+    {
+        NavigationManager.NavigateTo($"/services/{serviceId}");
+    }
+
+    // Helper metodlar - UI formatlaması için
+    private string GetStatusBadgeClass(ServiceStatus status)
+    {
+        return status switch
+        {
+            ServiceStatus.Pending => "bg-warning text-dark",
+            ServiceStatus.InProgress => "bg-info text-white",
+            ServiceStatus.WaitingApproval => "bg-secondary text-white",
+            ServiceStatus.Completed => "bg-success text-white",
+            ServiceStatus.Cancelled => "bg-danger text-white",
+            _ => "bg-secondary text-white"
+        };
+    }
+
+    private string GetStatusDisplayName(ServiceStatus status)
+    {
+        return status switch
+        {
+            ServiceStatus.Pending => "Bekleyen",
+            ServiceStatus.InProgress => "Devam Ediyor",
+            ServiceStatus.WaitingApproval => "Onay Bekliyor",
+            ServiceStatus.Completed => "Tamamlandı",
+            ServiceStatus.Cancelled => "İptal Edildi",
+            _ => "Bilinmiyor"
+        };
+    }
+
+    private string GetPriorityBadgeClass(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Low => "bg-secondary",
+            Priority.Normal => "bg-info",
+            Priority.High => "bg-warning text-dark",
+            Priority.Critical => "bg-danger",
+            _ => "bg-secondary"
+        };
+    }
+
+    private string GetPriorityBorderClass(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Low => "border-secondary",
+            Priority.Normal => "border-info",
+            Priority.High => "border-warning",
+            Priority.Critical => "border-danger",
+            _ => "border-secondary"
+        };
+    }
+
+    private string GetPriorityDisplayName(Priority priority)
+    {
+        return priority switch
+        {
+            Priority.Low => "Düşük",
+            Priority.Normal => "Normal",
+            Priority.High => "Yüksek",
+            Priority.Critical => "Kritik",
+            _ => "Bilinmiyor"
+        };
+    }
+
+    private object[] GetPieChartData()
+    {
+        return statusDistribution.Select(kvp => new
+        {
+            Status = GetStatusDisplayName(kvp.Key),
+            Count = kvp.Value
+        }).ToArray();
+    }
+}

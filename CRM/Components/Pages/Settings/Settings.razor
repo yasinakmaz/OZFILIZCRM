@@ -1,0 +1,417 @@
+﻿@page "/settings"
+@using TeknikServisApp.Services
+@using TeknikServisApp.Data.Models
+@using TeknikServisApp.Enums
+@inject AuthService AuthService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Ayarlar - Teknik Servis</PageTitle>
+
+<div class="settings-container">
+    
+    @* Sayfa başlığı *@
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h2 class="page-title">
+                        <i class="fas fa-cog me-3 text-primary"></i>
+                        Sistem Ayarları
+                    </h2>
+                    <p class="text-muted mb-0">
+                        Sistem konfigürasyonu ve yönetim ayarları
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    @if (!AuthService.IsAdmin)
+    {
+        <div class="alert alert-warning">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Bu sayfaya erişim yetkiniz bulunmuyor. Sadece sistem yöneticileri ayarları değiştirebilir.
+        </div>
+    }
+    else
+    {
+        <div class="row">
+            @* Sol menü *@
+            <div class="col-lg-3 col-md-4 col-12 mb-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h6 class="card-title mb-0">
+                            <i class="fas fa-list me-2"></i>
+                            Ayar Kategorileri
+                        </h6>
+                    </div>
+                    <div class="list-group list-group-flush">
+                        <button class="list-group-item list-group-item-action @(activeTab == "general" ? "active" : "")"
+                                @onclick='() => SetActiveTab("general")'>
+                            <i class="fas fa-cogs me-2"></i>
+                            Genel Ayarlar
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "database" ? "active" : "")"
+                                @onclick='() => SetActiveTab("database")'>
+                            <i class="fas fa-database me-2"></i>
+                            Veritabanı
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "security" ? "active" : "")"
+                                @onclick='() => SetActiveTab("security")'>
+                            <i class="fas fa-shield-alt me-2"></i>
+                            Güvenlik
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "logs" ? "active" : "")"
+                                @onclick='() => SetActiveTab("logs")'>
+                            <i class="fas fa-file-alt me-2"></i>
+                            Loglar
+                        </button>
+                        <button class="list-group-item list-group-item-action @(activeTab == "backup" ? "active" : "")"
+                                @onclick='() => SetActiveTab("backup")'>
+                            <i class="fas fa-hdd me-2"></i>
+                            Yedekleme
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            @* Ayar içeriği *@
+            <div class="col-lg-9 col-md-8 col-12">
+                
+                @* Genel Ayarlar *@
+                @if (activeTab == "general")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-cogs me-2"></i>
+                                Genel Sistem Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Şirket Adı</label>
+                                    <input type="text" class="form-control" value="Teknik Servis A.Ş." />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Sistem Versiyonu</label>
+                                    <input type="text" class="form-control" value="1.0.0" readonly />
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Varsayılan Sayfa Boyutu</label>
+                                    <select class="form-select">
+                                        <option value="10">10</option>
+                                        <option value="20" selected>20</option>
+                                        <option value="50">50</option>
+                                        <option value="100">100</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Oturum Süresi (Dakika)</label>
+                                    <input type="number" class="form-control" value="120" min="30" max="480" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableNotifications" checked />
+                                        <label class="form-check-label" for="enableNotifications">
+                                            Sistem bildirimleri aktif
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableAuditLog" checked />
+                                        <label class="form-check-label" for="enableAuditLog">
+                                            Detaylı audit log kaydı
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="mt-4">
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Veritabanı Ayarları *@
+                @if (activeTab == "database")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-database me-2"></i>
+                                Veritabanı Yönetimi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="alert alert-info">
+                                <i class="fas fa-info-circle me-2"></i>
+                                Veritabanı işlemleri sistem performansını etkileyebilir. Dikkatli kullanın.
+                            </div>
+                            
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <div class="card border-primary">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-sync-alt fa-2x text-primary mb-3"></i>
+                                            <h6>Migration Kontrolü</h6>
+                                            <p class="text-muted small">Bekleyen migration'ları kontrol et</p>
+                                            <button class="btn btn-outline-primary btn-sm">
+                                                Kontrol Et
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-success">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-download fa-2x text-success mb-3"></i>
+                                            <h6>Veritabanı Yedeği</h6>
+                                            <p class="text-muted small">Tam veritabanı yedeği al</p>
+                                            <button class="btn btn-outline-success btn-sm">
+                                                Yedek Al
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-warning">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-broom fa-2x text-warning mb-3"></i>
+                                            <h6>Log Temizleme</h6>
+                                            <p class="text-muted small">Eski log kayıtlarını temizle</p>
+                                            <button class="btn btn-outline-warning btn-sm">
+                                                Temizle
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-md-6">
+                                    <div class="card border-danger">
+                                        <div class="card-body text-center">
+                                            <i class="fas fa-exclamation-triangle fa-2x text-danger mb-3"></i>
+                                            <h6>Veritabanı Sıfırla</h6>
+                                            <p class="text-muted small">Sadece test ortamında!</p>
+                                            <button class="btn btn-outline-danger btn-sm" disabled>
+                                                Sıfırla
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Güvenlik Ayarları *@
+                @if (activeTab == "security")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-shield-alt me-2"></i>
+                                Güvenlik Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-4">
+                                <div class="col-12">
+                                    <h6 class="text-primary">Şifre Politikası</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Minimum Şifre Uzunluğu</label>
+                                            <input type="number" class="form-control" value="6" min="4" max="20" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Şifre Geçerlilik Süresi (Gün)</label>
+                                            <input type="number" class="form-control" value="90" min="30" max="365" />
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="requireUppercase" />
+                                                <label class="form-check-label" for="requireUppercase">
+                                                    Büyük harf zorunlu
+                                                </label>
+                                            </div>
+                                        </div>
+                                        <div class="col-12">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" id="requireSpecialChar" />
+                                                <label class="form-check-label" for="requireSpecialChar">
+                                                    Özel karakter zorunlu
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                
+                                <div class="col-12">
+                                    <hr />
+                                    <h6 class="text-primary">Giriş Güvenliği</h6>
+                                    <div class="row g-3">
+                                        <div class="col-md-6">
+                                            <label class="form-label">Max Başarısız Giriş Denemesi</label>
+                                            <input type="number" class="form-control" value="5" min="3" max="10" />
+                                        </div>
+                                        <div class="col-md-6">
+                                            <label class="form-label">Hesap Kilitleme Süresi (Dakika)</label>
+                                            <input type="number" class="form-control" value="15" min="5" max="60" />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary">
+                                    <i class="fas fa-save me-2"></i>
+                                    Güvenlik Ayarlarını Kaydet
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Log Ayarları *@
+                @if (activeTab == "logs")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-file-alt me-2"></i>
+                                Log Yönetimi
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Log Seviyesi</label>
+                                    <select class="form-select">
+                                        <option value="Debug">Debug</option>
+                                        <option value="Information" selected>Information</option>
+                                        <option value="Warning">Warning</option>
+                                        <option value="Error">Error</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Log Saklama Süresi (Gün)</label>
+                                    <input type="number" class="form-control" value="30" min="7" max="365" />
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enableFileLogging" checked />
+                                        <label class="form-check-label" for="enableFileLogging">
+                                            Dosyaya log yazma
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="col-12">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" id="enablePerformanceLog" />
+                                        <label class="form-check-label" for="enablePerformanceLog">
+                                            Performans logları
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary me-2">
+                                    <i class="fas fa-save me-2"></i>
+                                    Kaydet
+                                </button>
+                                <button class="btn btn-outline-info">
+                                    <i class="fas fa-download me-2"></i>
+                                    Log Dosyalarını İndir
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                @* Yedekleme Ayarları *@
+                @if (activeTab == "backup")
+                {
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="card-title mb-0">
+                                <i class="fas fa-hdd me-2"></i>
+                                Yedekleme Ayarları
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label class="form-label">Otomatik Yedekleme</label>
+                                    <select class="form-select">
+                                        <option value="disabled">Devre Dışı</option>
+                                        <option value="daily">Günlük</option>
+                                        <option value="weekly" selected>Haftalık</option>
+                                        <option value="monthly">Aylık</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6">
+                                    <label class="form-label">Yedek Saklama Süresi</label>
+                                    <select class="form-select">
+                                        <option value="7">7 Gün</option>
+                                        <option value="30" selected>30 Gün</option>
+                                        <option value="90">90 Gün</option>
+                                        <option value="365">1 Yıl</option>
+                                    </select>
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">Yedek Klasörü</label>
+                                    <div class="input-group">
+                                        <input type="text" class="form-control" value="C:\Backups\TeknikServis" readonly />
+                                        <button class="btn btn-outline-secondary">
+                                            <i class="fas fa-folder-open"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="mt-4">
+                                <button class="btn btn-primary me-2">
+                                    <i class="fas fa-save me-2"></i>
+                                    Ayarları Kaydet
+                                </button>
+                                <button class="btn btn-success">
+                                    <i class="fas fa-play me-2"></i>
+                                    Şimdi Yedek Al
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    private string activeTab = "general";
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Admin kontrolü
+        if (!AuthService.IsAdmin)
+        {
+            // Unauthorized access log
+            // NavigationManager.NavigateTo("/dashboard");
+        }
+    }
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        StateHasChanged();
+    }
+}
