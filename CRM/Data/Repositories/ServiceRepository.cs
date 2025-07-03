@@ -1,232 +1,221 @@
-﻿namespace CRM.Data.Repositories
+﻿using Microsoft.Extensions.Logging;
+
+namespace CRM.Data.Repositories
 {
     /// <summary>
-    /// Service repository implementation
-    /// Servis yönetimi için özelleştirilmiş veri erişim operasyonları
+    /// Service repository implementation - service management specific operations
     /// </summary>
     public class ServiceRepository : Repository<Service>, IServiceRepository
     {
-        public ServiceRepository(TeknikServisDbContext context) : base(context)
+        public ServiceRepository(TeknikServisDbContext context, ILogger<ServiceRepository> logger)
+            : base(context, logger)
         {
         }
 
-        /// <summary>
-        /// Duruma göre servisleri getirir
-        /// Farklı statüdeki servisleri listelemek için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetByStatusAsync(ServiceStatus status)
+        public async Task<IEnumerable<Service>> GetServicesByStatusAsync(ServiceStatus status)
         {
-            return await _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.CreatedByUser)
-                .Where(s => s.Status == status)
-                .OrderByDescending(s => s.CreatedDate)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.AssignedUser)
+                    .Where(s => s.Status == status)
+                    .OrderByDescending(s => s.CreatedDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting services by status: {Status}", status);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Belirli bir müşterinin tüm servislerini getirir
-        /// Müşteri detay sayfasında servis geçmişi için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetByCustomerIdAsync(int customerId)
+        public async Task<IEnumerable<Service>> GetServicesByCustomerAsync(int customerId)
         {
-            return await _dbSet
-                .Include(s => s.ServiceTasks)
-                .Include(s => s.ServiceUsers)
-                    .ThenInclude(su => su.User)
-                .Where(s => s.CustomerId == customerId)
-                .OrderByDescending(s => s.CreatedDate)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet
+                    .Include(s => s.AssignedUser)
+                    .Include(s => s.ServiceTasks)
+                    .Where(s => s.CustomerId == customerId)
+                    .OrderByDescending(s => s.CreatedDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting services by customer: {CustomerId}", customerId);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Belirli bir kullanıcının atandığı servisleri getirir
-        /// Teknisyen dashboard'ında kişisel servis listesi için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetByUserIdAsync(int userId)
+        public async Task<IEnumerable<Service>> GetServicesByUserAsync(int userId)
         {
-            return await _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.ServiceTasks)
-                .Include(s => s.ServiceUsers.Where(su => su.UserId == userId && su.IsActive))
-                .Where(s => s.ServiceUsers.Any(su => su.UserId == userId && su.IsActive))
-                .OrderByDescending(s => s.ScheduledDateTime)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.ServiceTasks)
+                    .Where(s => s.AssignedUserId == userId)
+                    .OrderByDescending(s => s.CreatedDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting services by user: {UserId}", userId);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Servisin tüm detayları ile birlikte getirir
-        /// Servis detay sayfası ve düzenleme formu için kullanılır
-        /// </summary>
-        public async Task<Service?> GetServiceWithDetailsAsync(int serviceId)
-        {
-            return await _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.CreatedByUser)
-                .Include(s => s.ApprovedByUser)
-                .Include(s => s.ServiceTasks)
-                    .ThenInclude(st => st.CompletedByUser)
-                .Include(s => s.ServiceUsers.Where(su => su.IsActive))
-                    .ThenInclude(su => su.User)
-                .Include(s => s.ServiceUsers.Where(su => su.IsActive))
-                    .ThenInclude(su => su.AssignedByUser)
-                .FirstOrDefaultAsync(s => s.Id == serviceId);
-        }
-
-        /// <summary>
-        /// Bekleyen servisleri getirir (henüz personel atanmamış)
-        /// Ana servis listesi sayfasında kullanılır
-        /// </summary>
         public async Task<IEnumerable<Service>> GetPendingServicesAsync()
         {
-            return await GetByStatusAsync(ServiceStatus.Pending);
+            return await GetServicesByStatusAsync(ServiceStatus.Pending);
         }
 
-        /// <summary>
-        /// Aktif servisleri getirir (üzerinde çalışılan)
-        /// Güncel iş yükünü görmek için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetActiveServicesAsync()
+        public async Task<IEnumerable<Service>> GetServicesInProgressAsync()
         {
-            return await GetByStatusAsync(ServiceStatus.InProgress);
+            return await GetServicesByStatusAsync(ServiceStatus.InProgress);
         }
 
-        /// <summary>
-        /// Admin onayı bekleyen servisleri getirir
-        /// Admin panelinde onay bekleyen işler için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetServicesAwaitingApprovalAsync()
-        {
-            return await GetByStatusAsync(ServiceStatus.WaitingApproval);
-        }
-
-        /// <summary>
-        /// Tamamlanmış ve onaylanmış servisleri getirir
-        /// Geçmiş servisler ve raporlama için kullanılır
-        /// </summary>
         public async Task<IEnumerable<Service>> GetCompletedServicesAsync()
         {
-            return await GetByStatusAsync(ServiceStatus.Completed);
+            return await GetServicesByStatusAsync(ServiceStatus.Completed);
         }
 
-        /// <summary>
-        /// Sayfalama ve filtreleme ile servisleri getirir
-        /// Ana servis listesi sayfasında kullanılır
-        /// </summary>
-        public async Task<(IEnumerable<Service> services, int totalCount)> GetServicesPagedAsync(
-            int pageNumber, int pageSize, ServiceStatus? status = null,
-            int? customerId = null, string? searchTerm = null)
-        {
-            var query = _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.CreatedByUser)
-                .Include(s => s.ServiceUsers.Where(su => su.IsActive))
-                    .ThenInclude(su => su.User)
-                .AsQueryable();
-
-            // Status filtresi
-            if (status.HasValue)
-                query = query.Where(s => s.Status == status.Value);
-
-            // Müşteri filtresi
-            if (customerId.HasValue)
-                query = query.Where(s => s.CustomerId == customerId.Value);
-
-            // Arama terimi
-            if (!string.IsNullOrWhiteSpace(searchTerm))
-            {
-                var term = searchTerm.ToLower();
-                query = query.Where(s => s.Customer.CompanyName.ToLower().Contains(term) ||
-                                        s.Notes != null && s.Notes.ToLower().Contains(term) ||
-                                        s.Id.ToString().Contains(searchTerm));
-            }
-
-            var totalCount = await query.CountAsync();
-
-            var services = await query
-                .OrderByDescending(s => s.CreatedDate)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (services, totalCount);
-        }
-
-        /// <summary>
-        /// Belirli tarih aralığındaki servisleri getirir
-        /// Raporlama ve analiz için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetServicesByDateRangeAsync(DateTime startDate, DateTime endDate)
-        {
-            return await _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.ServiceUsers)
-                    .ThenInclude(su => su.User)
-                .Where(s => s.CreatedDate >= startDate && s.CreatedDate <= endDate)
-                .OrderByDescending(s => s.CreatedDate)
-                .ToListAsync();
-        }
-
-        /// <summary>
-        /// Her statüdeki servis sayılarını getirir
-        /// Dashboard widget'ları için kullanılır
-        /// </summary>
-        public async Task<Dictionary<ServiceStatus, int>> GetServiceStatusCountsAsync()
-        {
-            return await _dbSet
-                .GroupBy(s => s.Status)
-                .ToDictionaryAsync(g => g.Key, g => g.Count());
-        }
-
-        /// <summary>
-        /// Vadesi geçmiş servisleri getirir
-        /// Uyarı ve takip sistemleri için kullanılır
-        /// </summary>
         public async Task<IEnumerable<Service>> GetOverdueServicesAsync()
         {
-            var now = DateTime.Now;
-
-            return await _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.ServiceUsers)
-                    .ThenInclude(su => su.User)
-                .Where(s => s.ScheduledDateTime < now &&
-                           (s.Status == ServiceStatus.Pending || s.Status == ServiceStatus.InProgress))
-                .OrderBy(s => s.ScheduledDateTime)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.AssignedUser)
+                    .Where(s => s.ExpectedCompletionDate.HasValue &&
+                               s.ExpectedCompletionDate.Value < DateTime.Now &&
+                               s.Status != ServiceStatus.Completed &&
+                               s.Status != ServiceStatus.Cancelled)
+                    .OrderBy(s => s.ExpectedCompletionDate)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting overdue services");
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Belirli tarih aralığındaki toplam servis tutarını hesaplar
-        /// Mali raporlama için kullanılır
-        /// </summary>
-        public async Task<decimal> GetTotalServiceAmountByDateRangeAsync(DateTime startDate, DateTime endDate)
+        public async Task<(IEnumerable<Service> Services, int TotalCount)> GetServicesPagedAsync(
+            int pageNumber, int pageSize,
+            ServiceStatus? status = null,
+            int? customerId = null,
+            int? assignedUserId = null,
+            DateTime? startDate = null,
+            DateTime? endDate = null)
         {
-            return await _dbSet
-                .Where(s => s.ServiceEndDateTime >= startDate &&
-                           s.ServiceEndDateTime <= endDate &&
-                           s.Status == ServiceStatus.Completed &&
-                           s.ServiceAmount.HasValue)
-                .SumAsync(s => s.ServiceAmount!.Value);
+            try
+            {
+                IQueryable<Service> query = _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.AssignedUser);
+
+                if (status.HasValue)
+                    query = query.Where(s => s.Status == status.Value);
+
+                if (customerId.HasValue)
+                    query = query.Where(s => s.CustomerId == customerId.Value);
+
+                if (assignedUserId.HasValue)
+                    query = query.Where(s => s.AssignedUserId == assignedUserId.Value);
+
+                if (startDate.HasValue)
+                    query = query.Where(s => s.CreatedDate >= startDate.Value);
+
+                if (endDate.HasValue)
+                    query = query.Where(s => s.CreatedDate <= endDate.Value);
+
+                var totalCount = await query.CountAsync();
+                var services = await query
+                    .OrderByDescending(s => s.CreatedDate)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (services, totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting services paged");
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Belirli kullanıcının servislerini duruma göre getirir
-        /// Kullanıcı bazlı performans raporları için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Service>> GetUserServicesAsync(int userId, ServiceStatus? status = null)
+        public async Task<Service?> GetServiceWithDetailsAsync(int serviceId)
         {
-            var query = _dbSet
-                .Include(s => s.Customer)
-                .Include(s => s.ServiceTasks)
-                .Where(s => s.ServiceUsers.Any(su => su.UserId == userId && su.IsActive));
+            try
+            {
+                return await _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.AssignedUser)
+                    .Include(s => s.ServiceTasks)
+                        .ThenInclude(t => t.CompletedByUser)
+                    .FirstOrDefaultAsync(s => s.Id == serviceId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting service with details: {ServiceId}", serviceId);
+                throw;
+            }
+        }
 
-            if (status.HasValue)
-                query = query.Where(s => s.Status == status.Value);
+        public async Task<decimal> GetTotalServiceAmountByPeriodAsync(DateTime startDate, DateTime endDate)
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(s => s.CreatedDate >= startDate &&
+                               s.CreatedDate <= endDate &&
+                               s.ServiceAmount.HasValue)
+                    .SumAsync(s => s.ServiceAmount!.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting total service amount by period");
+                throw;
+            }
+        }
 
-            return await query
-                .OrderByDescending(s => s.ScheduledDateTime)
-                .ToListAsync();
+        public async Task<IEnumerable<Service>> GetServicesDueTodayAsync()
+        {
+            try
+            {
+                var today = DateTime.Today;
+                var tomorrow = today.AddDays(1);
+
+                return await _dbSet
+                    .Include(s => s.Customer)
+                    .Include(s => s.AssignedUser)
+                    .Where(s => s.ExpectedCompletionDate >= today &&
+                               s.ExpectedCompletionDate < tomorrow &&
+                               s.Status != ServiceStatus.Completed)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting services due today");
+                throw;
+            }
+        }
+
+        public async Task<int> GetActiveServiceCountAsync()
+        {
+            try
+            {
+                return await _dbSet.CountAsync(s => s.Status == ServiceStatus.Pending ||
+                                                   s.Status == ServiceStatus.InProgress);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active service count");
+                throw;
+            }
         }
     }
 }

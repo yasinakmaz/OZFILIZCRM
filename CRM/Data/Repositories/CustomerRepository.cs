@@ -1,142 +1,156 @@
-﻿namespace CRM.Data.Repositories
+﻿using Microsoft.Extensions.Logging;
+
+namespace CRM.Data.Repositories
 {
     /// <summary>
-    /// Customer repository implementation
-    /// Müşteri yönetimi için özelleştirilmiş veri erişim operasyonları
+    /// Customer repository implementation - CRM functionality için specific operations
     /// </summary>
     public class CustomerRepository : Repository<Customer>, ICustomerRepository
     {
-        public CustomerRepository(TeknikServisDbContext context) : base(context)
+        public CustomerRepository(TeknikServisDbContext context, ILogger<CustomerRepository> logger)
+            : base(context, logger)
         {
         }
 
-        /// <summary>
-        /// Vergi numarasına göre müşteri getirir
-        /// Müşteri kaydı sırasında duplicate kontrolü için kullanılır
-        /// </summary>
-        public async Task<Customer?> GetByTaxNumberAsync(string taxNumber)
-        {
-            return await _dbSet.FirstOrDefaultAsync(c => c.TaxNumber == taxNumber);
-        }
-
-        /// <summary>
-        /// Firma tipine göre müşterileri getirir
-        /// Raporlama ve filtreleme için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Customer>> GetByCompanyTypeAsync(CompanyType companyType)
-        {
-            return await _dbSet
-                .Where(c => c.CompanyType == companyType && c.IsActive)
-                .OrderBy(c => c.CompanyName)
-                .ToListAsync();
-        }
-
-        /// <summary>
-        /// Aktif müşterileri getirir
-        /// UI'da müşteri listelerinde sadece aktif müşterileri göstermek için
-        /// </summary>
-        public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
-        {
-            return await _dbSet
-                .Where(c => c.IsActive)
-                .OrderBy(c => c.CompanyName)
-                .ToListAsync();
-        }
-
-        /// <summary>
-        /// Müşteri arama işlemi
-        /// Firma adı, yetkili kişi adı, telefon numarası ve vergi numarasında arama yapar
-        /// Servis formunda müşteri seçimi için kritik
-        /// </summary>
         public async Task<IEnumerable<Customer>> SearchCustomersAsync(string searchTerm)
         {
-            if (string.IsNullOrWhiteSpace(searchTerm))
-                return await GetActiveCustomersAsync();
-
-            var term = searchTerm.ToLower();
-
-            return await _dbSet
-                .Where(c => c.IsActive &&
-                           (c.CompanyName.ToLower().Contains(term) ||
-                            c.AuthorizedPersonName.ToLower().Contains(term) ||
-                            c.PhoneNumber.Contains(searchTerm) ||
-                            c.TaxNumber.Contains(searchTerm)))
-                .OrderBy(c => c.CompanyName)
-                .ToListAsync();
-        }
-
-        /// <summary>
-        /// Vergi numarasının benzersiz olup olmadığını kontrol eder
-        /// Müşteri kayıt/güncelleme işlemlerinde validation için
-        /// </summary>
-        public async Task<bool> IsTaxNumberUniqueAsync(string taxNumber, int? excludeCustomerId = null)
-        {
-            var query = _dbSet.Where(c => c.TaxNumber == taxNumber);
-
-            if (excludeCustomerId.HasValue)
-                query = query.Where(c => c.Id != excludeCustomerId.Value);
-
-            return !await query.AnyAsync();
-        }
-
-        /// <summary>
-        /// Müşterileri servis sayıları ile birlikte getirir
-        /// Dashboard ve raporlama için kullanılır
-        /// </summary>
-        public async Task<(IEnumerable<Customer> customers, int totalCount)> GetCustomersWithServicesAsync(
-            int pageNumber, int pageSize, string? searchTerm = null)
-        {
-            var query = _dbSet.Include(c => c.Services).AsQueryable();
-
-            // Aktif müşteri filtresi
-            query = query.Where(c => c.IsActive);
-
-            // Arama terimi varsa filtrele
-            if (!string.IsNullOrWhiteSpace(searchTerm))
+            try
             {
-                var term = searchTerm.ToLower();
-                query = query.Where(c => c.CompanyName.ToLower().Contains(term) ||
-                                        c.AuthorizedPersonName.ToLower().Contains(term));
+                var normalizedSearch = searchTerm.ToLower();
+                return await _dbSet
+                    .Where(c => c.IsActive &&
+                               (c.CompanyName.ToLower().Contains(normalizedSearch) ||
+                                c.ContactPerson != null && c.ContactPerson.ToLower().Contains(normalizedSearch) ||
+                                c.Email != null && c.Email.ToLower().Contains(normalizedSearch) ||
+                                c.TaxNumber != null && c.TaxNumber.Contains(searchTerm)))
+                    .OrderBy(c => c.CompanyName)
+                    .ToListAsync();
             }
-
-            var totalCount = await query.CountAsync();
-
-            var customers = await query
-                .OrderBy(c => c.CompanyName)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync();
-
-            return (customers, totalCount);
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching customers with term: {SearchTerm}", searchTerm);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// Belirli bir müşteriyi tüm servisleri ile birlikte getirir
-        /// Müşteri detay sayfası için kullanılır
-        /// </summary>
-        public async Task<Customer?> GetCustomerWithServicesAsync(int customerId)
+        public async Task<Customer?> GetByCompanyNameAsync(string companyName)
         {
-            return await _dbSet
-                .Include(c => c.Services)
-                    .ThenInclude(s => s.ServiceTasks)
-                .Include(c => c.Services)
-                    .ThenInclude(s => s.ServiceUsers)
-                        .ThenInclude(su => su.User)
-                .FirstOrDefaultAsync(c => c.Id == customerId);
+            try
+            {
+                return await _dbSet.FirstOrDefaultAsync(c => c.CompanyName == companyName);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer by company name: {CompanyName}", companyName);
+                throw;
+            }
         }
 
-        /// <summary>
-        /// En çok servisi olan müşterileri getirir
-        /// Dashboard'da top müşteriler widget'ı için kullanılır
-        /// </summary>
-        public async Task<IEnumerable<Customer>> GetTopCustomersByServiceCountAsync(int count = 10)
+        public async Task<Customer?> GetByTaxNumberAsync(string taxNumber)
         {
-            return await _dbSet
-                .Include(c => c.Services)
-                .Where(c => c.IsActive)
-                .OrderByDescending(c => c.Services.Count)
-                .Take(count)
-                .ToListAsync();
+            try
+            {
+                return await _dbSet.FirstOrDefaultAsync(c => c.TaxNumber == taxNumber);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer by tax number: {TaxNumber}", taxNumber);
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<Customer>> GetActiveCustomersAsync()
+        {
+            try
+            {
+                return await _dbSet
+                    .Where(c => c.IsActive)
+                    .OrderBy(c => c.CompanyName)
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting active customers");
+                throw;
+            }
+        }
+
+        public async Task<IEnumerable<Customer>> GetCustomersWithPendingServicesAsync()
+        {
+            try
+            {
+                return await _dbSet
+                    .Include(c => c.Services)
+                    .Where(c => c.IsActive && c.Services.Any(s => s.Status == ServiceStatus.Pending || s.Status == ServiceStatus.InProgress))
+                    .ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customers with pending services");
+                throw;
+            }
+        }
+
+        public async Task<(IEnumerable<Customer> Customers, int TotalCount)> GetCustomersPagedAsync(int pageNumber, int pageSize, string? searchTerm = null)
+        {
+            try
+            {
+                IQueryable<Customer> query = _dbSet.Where(c => c.IsActive);
+
+                if (!string.IsNullOrEmpty(searchTerm))
+                {
+                    var normalizedSearch = searchTerm.ToLower();
+                    query = query.Where(c => c.CompanyName.ToLower().Contains(normalizedSearch) ||
+                                           (c.ContactPerson != null && c.ContactPerson.ToLower().Contains(normalizedSearch)) ||
+                                           (c.Email != null && c.Email.ToLower().Contains(normalizedSearch)));
+                }
+
+                var totalCount = await query.CountAsync();
+                var customers = await query
+                    .OrderBy(c => c.CompanyName)
+                    .Skip((pageNumber - 1) * pageSize)
+                    .Take(pageSize)
+                    .ToListAsync();
+
+                return (customers, totalCount);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customers paged");
+                throw;
+            }
+        }
+
+        public async Task<bool> HasActiveServicesAsync(int customerId)
+        {
+            try
+            {
+                return await _context.Services
+                    .AnyAsync(s => s.CustomerId == customerId &&
+                                  (s.Status == ServiceStatus.Pending ||
+                                   s.Status == ServiceStatus.InProgress ||
+                                   s.Status == ServiceStatus.Accepted));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error checking active services for customer: {CustomerId}", customerId);
+                throw;
+            }
+        }
+
+        public async Task<decimal> GetTotalServiceAmountAsync(int customerId)
+        {
+            try
+            {
+                return await _context.Services
+                    .Where(s => s.CustomerId == customerId && s.ServiceAmount.HasValue)
+                    .SumAsync(s => s.ServiceAmount!.Value);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting total service amount for customer: {CustomerId}", customerId);
+                throw;
+            }
         }
     }
 }

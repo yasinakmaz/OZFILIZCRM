@@ -1,14 +1,45 @@
 ﻿<?xml version="1.0" encoding="utf-8" ?>
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:CRM"
-             xmlns:components="clr-namespace:CRM.Components"
-             x:Class="CRM.MainPage">
+             x:Class="CRM.MainPage"
+             Title="Teknik Servis CRM"
+             BackgroundColor="{StaticResource Light}">
 
-    <BlazorWebView x:Name="blazorWebView" HostPage="wwwroot/index.html">
-        <BlazorWebView.RootComponents>
-            <RootComponent Selector="#app" ComponentType="{x:Type components:Routes}" />
-        </BlazorWebView.RootComponents>
-    </BlazorWebView>
+    <ScrollView>
+        <Grid RowDefinitions="Auto,*" Padding="20">
+
+            <!-- Header -->
+            <StackLayout Grid.Row="0" Spacing="10" Margin="0,20,0,30">
+                <Label Text="🔧 Teknik Servis CRM" 
+                       FontSize="28" 
+                       FontAttributes="Bold" 
+                       TextColor="{StaticResource Primary}"
+                       HorizontalOptions="Center" />
+
+                <Label Text="Profesyonel Teknik Servis Yönetim Sistemi" 
+                       FontSize="16" 
+                       TextColor="{StaticResource Secondary}"
+                       HorizontalOptions="Center" />
+            </StackLayout>
+
+            <!-- Blazor WebView -->
+            <Border Grid.Row="1" 
+                    Stroke="{StaticResource Primary}" 
+                    StrokeThickness="2" 
+                    BackgroundColor="White"
+                    StrokeShape="RoundRectangle 15">
+
+                <BlazorWebView x:Name="blazorWebView" 
+                               HostPage="wwwroot/index.html"
+                               BackgroundColor="Transparent">
+                    <BlazorWebView.RootComponents>
+                        <RootComponent Selector="#app" ComponentType="{x:Type local:Components.App}" />
+                    </BlazorWebView.RootComponents>
+                </BlazorWebView>
+
+            </Border>
+
+        </Grid>
+    </ScrollView>
 
 </ContentPage>

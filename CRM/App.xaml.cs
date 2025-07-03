@@ -1,84 +1,69 @@
 ﻿namespace CRM
 {
+     /// <summary>
+    /// MAUI Application ana sınıfı
+    /// Uygulama lifecycle management ve global exception handling
+    /// </summary>
     public partial class App : Application
     {
-        private readonly AuthService _authService;
-        private readonly LoggingService _loggingService;
+        private readonly ILogger<App> _logger;
+        private readonly IGlobalErrorHandler _errorHandler;
 
-        public App(AuthService authService, LoggingService loggingService)
+        public App(ILogger<App> logger, IGlobalErrorHandler errorHandler)
         {
             InitializeComponent();
+            
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            _errorHandler = errorHandler ?? throw new ArgumentNullException(nameof(errorHandler));
 
-            _authService = authService;
-            _loggingService = loggingService;
-        }
+            // **GLOBAL EXCEPTION HANDLING**
+            AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+            TaskScheduler.UnobservedTaskException += OnUnobservedTaskException;
 
-        protected override Window CreateWindow(IActivationState? activationState) 
-        { 
-            return new Window(new MainPage()) { Title = "CRM" }; 
-        }
+            // **SET MAIN PAGE**
+            MainPage = new MainPage();
 
-        /// <summary>
-        /// Uygulama başlatıldığında çalışır
-        /// Session restore ve initial setup işlemleri
-        /// </summary>
-        protected override async void OnStart()
-        {
-            try
-            {
-                // Önceki oturumu geri yüklemeye çalış
-                await _authService.RestoreSessionAsync();
-
-                // Uygulama başlatma log'u
-                await _loggingService.LogAsync(
-                    "APP_START",
-                    "Application",
-                    description: "Uygulama başlatıldı",
-                    userId: _authService.CurrentUser?.Id);
-            }
-            catch (Exception ex)
-            {
-                // Başlatma hatalarını logla
-                await _loggingService.LogErrorAsync(ex, "APP_START", "Application");
-            }
+            _logger.LogInformation("🚀 Teknik Servis CRM Uygulaması başlatıldı");
         }
 
         /// <summary>
-        /// Uygulama sleep moduna geçtiğinde çalışır
+        /// Uygulama uyku modundan çıktığında çalışır
         /// </summary>
-        protected override async void OnSleep()
+        protected override void OnResume()
         {
-            try
+            base.OnResume();
+            _logger.LogInformation("📱 Uygulama aktif hale geldi");
+        }
+
+        /// <summary>
+        /// Uygulama uyku moduna girdiğinde çalışır
+        /// </summary>
+        protected override void OnSleep()
+        {
+            base.OnSleep();
+            _logger.LogInformation("😴 Uygulama uyku moduna girdi");
+        }
+
+        /// <summary>
+        /// Unhandled exception handler
+        /// </summary>
+        private void OnUnhandledException(object sender, UnhandledExceptionEventArgs e)
+        {
+            if (e.ExceptionObject is Exception exception)
             {
-                await _loggingService.LogAsync(
-                    "APP_SLEEP",
-                    "Application",
-                    description: "Uygulama sleep moduna geçti",
-                    userId: _authService.CurrentUser?.Id);
-            }
-            catch (Exception ex)
-            {
-                await _loggingService.LogErrorAsync(ex, "APP_SLEEP", "Application");
+                _logger.LogCritical(exception, "💥 CRITICAL: Unhandled exception occurred");
+                _ = Task.Run(() => _errorHandler.HandleErrorAsync(exception, "UnhandledException"));
             }
         }
 
         /// <summary>
-        /// Uygulama sleep modundan çıktığında çalışır
+        /// Unobserved task exception handler
         /// </summary>
-        protected override async void OnResume()
+        private void OnUnobservedTaskException(object? sender, UnobservedTaskExceptionEventArgs e)
         {
-            try
-            {
-                await _loggingService.LogAsync(
-                    "APP_RESUME",
-                    "Application",
-                    description: "Uygulama sleep modundan çıktı",
-                    userId: _authService.CurrentUser?.Id);
-            }
-            catch (Exception ex)
-            {
-                await _loggingService.LogErrorAsync(ex, "APP_RESUME", "Application");
-            }
+            _logger.LogError(e.Exception, "⚠️ Unobserved task exception occurred");
+            _ = Task.Run(() => _errorHandler.HandleErrorAsync(e.Exception, "UnobservedTaskException"));
+            e.SetObserved(); // Mark as observed to prevent app termination
         }
     }
 }

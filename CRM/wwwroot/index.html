@@ -2,147 +2,153 @@
 <html lang="tr">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teknik Servis Yönetim Sistemi</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <title>Teknik Servis CRM</title>
     <base href="/" />
 
-    <!-- Meta tags -->
-    <meta name="description" content="Teknik servis yönetim sistemi - Servis takibi, müşteri yönetimi ve raporlama" />
-    <meta name="keywords" content="teknik servis, yönetim, takip, müşteri" />
-    <meta name="author" content="Teknik Servis Yönetim Sistemi" />
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
 
     <!-- Bootstrap CSS -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Font Awesome Icons -->
+
+    <!-- Font Awesome -->
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <!-- Syncfusion Blazor Theme -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/syncfusion-blazor/23.2.7/styles/bootstrap5.css" rel="stylesheet" />
+
+    <!-- Syncfusion CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/syncfusion-blazor/21.2.10/material.css" rel="stylesheet" />
+
     <!-- Custom CSS -->
     <link href="css/app.css" rel="stylesheet" />
-    <link href="css/custom.css" rel="stylesheet" />
-
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="favicon.ico" />
+    <link href="CRM.styles.css" rel="stylesheet" />
 </head>
 
 <body>
     <div id="app">
-        <!-- Loading screen -->
-        <div class="loading-splash">
-            <div class="loading-content">
-                <div class="loading-logo">
-                    <i class="fas fa-tools fa-3x text-primary"></i>
-                </div>
-                <h3 class="mt-3 text-primary">Teknik Servis</h3>
-                <p class="text-muted">Yönetim Sistemi</p>
-                <div class="spinner-border text-primary mt-3" role="status">
+        <!-- Loading Spinner -->
+        <div class="loading-container">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary" role="status">
                     <span class="visually-hidden">Yükleniyor...</span>
                 </div>
-                <p class="text-muted mt-2">Sistem başlatılıyor...</p>
-            </div>
-        </div>
-    </div>
-
-    <!-- Error UI -->
-    <div id="blazor-error-ui">
-        <div class="container mt-5">
-            <div class="row justify-content-center">
-                <div class="col-md-8">
-                    <div class="alert alert-danger shadow">
-                        <h4 class="alert-heading">
-                            <i class="fas fa-exclamation-triangle me-2"></i>
-                            Sistemde Bir Hata Oluştu
-                        </h4>
-                        <p>
-                            Beklenmeyen bir hata meydana geldi. Bu durum sistem yöneticisine bildirildi.
-                        </p>
-                        <hr>
-                        <div class="d-flex gap-2">
-                            <button class="btn btn-outline-danger" onclick="window.location.reload()">
-                                <i class="fas fa-sync me-2"></i>
-                                Sayfayı Yenile
-                            </button>
-                            <button class="btn btn-outline-secondary" onclick="window.history.back()">
-                                <i class="fas fa-arrow-left me-2"></i>
-                                Geri Dön
-                            </button>
-                        </div>
-                    </div>
+                <div class="mt-3">
+                    <h5 class="text-primary">Teknik Servis CRM</h5>
+                    <p class="text-muted">Uygulama yükleniyor...</p>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Scripts -->
+    <div id="blazor-error-ui">
+        <div class="alert alert-danger" role="alert">
+            <h4 class="alert-heading">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                Uygulama Hatası
+            </h4>
+            <p class="mb-3">
+                Uygulama başlatılırken beklenmeyen bir hata oluştu.
+            </p>
+            <hr>
+            <div class="d-flex justify-content-between align-items-center">
+                <button class="btn btn-outline-danger" onclick="window.location.reload()">
+                    <i class="fas fa-redo me-2"></i>
+                    Yeniden Başlat
+                </button>
+                <small class="text-muted">
+                    Hata Kodu: <span id="error-code">INIT_ERROR</span>
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bootstrap JS -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="_framework/blazor.webview.js"></script>
+
+    <!-- Syncfusion JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/syncfusion-blazor/21.2.10/syncfusion-blazor.min.js"></script>
+
+    <!-- Blazor Script -->
+    <script src="_framework/blazor.webview.js" autostart="false"></script>
+
+    <!-- Custom JavaScript -->
     <script src="js/app.js"></script>
 
     <style>
-        .loading-splash {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
+        .loading-container {
+            display: flex;
+            justify-content: center;
+            align-items: center;
             height: 100vh;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-            color: white;
         }
 
-        .loading-content {
+        .loading-spinner {
             text-align: center;
-            animation: fadeIn 0.5s ease-in;
-        }
-
-        .loading-logo {
-            animation: pulse 2s infinite;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(20px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        @keyframes pulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-
-            50% {
-                transform: scale(1.1);
-            }
+            padding: 40px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
         }
 
         #blazor-error-ui {
-            background: rgba(255, 255, 255, 0.95);
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100vh;
-            z-index: 10000;
+            background: lightyellow;
+            bottom: 0;
+            box-shadow: 0 -1px 2px rgba(0, 0, 0, 0.2);
             display: none;
-            align-items: center;
+            left: 0;
+            padding: 0.6rem 1.25rem 0.7rem 1.25rem;
+            position: fixed;
+            width: 100%;
+            z-index: 1000;
         }
 
-            #blazor-error-ui.show {
-                display: flex;
+            #blazor-error-ui .dismiss {
+                cursor: pointer;
+                position: absolute;
+                right: 0.75rem;
+                top: 0.5rem;
             }
 
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        .blazor-error-boundary {
+            background: url(data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNTYiIGhlaWdodD0iNDkiIHZpZXdCb3g9IjAgMCA1NiA0OSIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTEzLjUgNjMuNTM4NUMxMy41IDMxLjc5MTkgMzkuMjYzOCA2IDcxIDZIMTEzUzEzNS4wMzMgNi4xNjgyOCAxNDUuMzMgMTYuNDQyN0MxNTcuNjM2IDI4LjcwNjggMTU3IDI3IDE0NyA1NkMxMzYuNSA4NiA4OS41IDEyNSA1MCAxMjVIMTNWNjMuNTM4NVoiIGZpbGw9IiNGRkZGRkYiIGZpbGwtb3BhY2l0eT0iMC41Ii8+CjxwYXRoIGQ9Ik0zNS41IDEuODAzODVDMzUuNSAtMS4xMjY2NCA0My4xMjIgNCA1NiA0SDEwN0MxMTUgNCAyMC41IDQuNSAxMzggMTZDMTU2IDI5IDgxIDMxIDU3IDUyQzMzIDczIDYwIDEyMyA3MiAxMjNIMzVWMS44MDM4NVoiIGZpbGw9IiNGRkZGRkYiLz4KPC9zdmc+) no-repeat 1rem/1.8rem, #b32121;
+            background-clip: padding-box;
+            border-radius: 6px;
+            color: white;
+            margin: 2rem 0;
+            padding: 1rem;
         }
+
+            .blazor-error-boundary::after {
+                content: "Bu bileşende bir hata oluştu.";
+            }
     </style>
+
+    <script>
+        // Global error handling
+        window.addEventListener('error', function (e) {
+            console.error('Global JavaScript error:', e.error);
+            document.getElementById('error-code').textContent = 'JS_ERROR_' + Date.now();
+        });
+
+        // Blazor error handling
+        window.addEventListener('beforeunload', function (e) {
+            // Cleanup code if needed
+        });
+
+        // Initialize Blazor
+        Blazor.start({
+            loadBootResource: function (type, name, defaultUri, integrity) {
+                console.log(`Loading ${type}: ${name}`);
+                return defaultUri;
+            }
+        }).then(() => {
+            console.log('🚀 Blazor application started successfully');
+        }).catch(error => {
+            console.error('💥 Blazor start error:', error);
+            document.getElementById('blazor-error-ui').style.display = 'block';
+        });
+    </script>
 </body>
 </html>

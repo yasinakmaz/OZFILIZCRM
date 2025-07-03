@@ -1,125 +1,59 @@
-﻿// Dosya Yolu: TeknikServisApp/Components/App.razor
-@using Microsoft.AspNetCore.Components.Web
-@using TeknikServisApp.Components.Layout
+﻿@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Authorization
+@using CRM.Components.Layout
 
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Teknik Servis Yönetim Sistemi</title>
-    <base href="/" />
-
-    <!-- Bootstrap CSS -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/css/bootstrap.min.css" rel="stylesheet" />
-    <!-- Font Awesome Icons -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
-    <!-- Syncfusion Blazor Theme -->
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/syncfusion-blazor/23.2.7/styles/bootstrap5.css" rel="stylesheet" />
-    <!-- Custom CSS -->
-    <link href="css/app.css" rel="stylesheet" />
-    <link href="css/custom.css" rel="stylesheet" />
-</head>
-
-<body>
-    <div id="app">
-        <div class="loading-splash">
-            <div class="loading-content">
-                <div class="spinner-border text-primary" style="width: 3rem; height: 3rem;"></div>
-                <h4 class="mt-3 text-primary">Teknik Servis</h4>
-                <p class="text-muted">Sistem başlatılıyor...</p>
-            </div>
-        </div>
-    </div>
-
-    <div id="blazor-error-ui" class="blazor-error-boundary">
-        <div class="alert alert-danger" role="alert">
-            <h4 class="alert-heading">
-                <i class="fas fa-exclamation-triangle me-2"></i>
-                Bir hata oluştu
-            </h4>
-            <p>
-                Beklenmeyen bir hata meydana geldi. Lütfen sayfayı yenileyin.
-            </p>
-            <hr>
-            <p class="mb-0">
-                Sorun devam ederse sistem yöneticisi ile iletişime geçin.
-            </p>
-            <button class="btn btn-outline-danger mt-3" onclick="window.location.reload()">
-                <i class="fas fa-sync me-2"></i>
-                Sayfayı Yenile
-            </button>
-        </div>
-    </div>
-
-    <!-- JavaScript -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.0/js/bootstrap.bundle.min.js"></script>
-    <script src="_framework/blazor.webview.js"></script>
-    <script src="js/app.js"></script>
-
-    <style>
-        .loading-splash {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            z-index: 9999;
-        }
-
-        .loading-content {
-            text-align: center;
-            color: white;
-        }
-
-        .blazor-error-boundary {
-            background: #f8f9fa;
-            padding: 2rem;
-            border-radius: 0.5rem;
-            margin: 2rem;
-            border: 1px solid #dee2e6;
-        }
-
-        #blazor-error-ui {
-            display: none;
-        }
-
-            #blazor-error-ui.show {
-                display: block;
-            }
-    </style>
-</body>
-</html>
-
-<Router AppAssembly="@typeof(App).Assembly">
-    <Found Context="routeData">
-        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
-        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
-    </Found>
-    <NotFound>
-        <PageTitle>Sayfa Bulunamadı</PageTitle>
-        <LayoutView Layout="@typeof(MainLayout)">
-            <div class="container mt-5">
-                <div class="row justify-content-center">
-                    <div class="col-md-6 text-center">
-                        <div class="error-page">
-                            <h1 class="display-1 text-muted">404</h1>
-                            <h2 class="mb-3">Sayfa Bulunamadı</h2>
-                            <p class="text-muted mb-4">
-                                Aradığınız sayfa mevcut değil veya taşınmış olabilir.
-                            </p>
-                            <a href="/" class="btn btn-primary">
-                                <i class="fas fa-home me-2"></i>
-                                Ana Sayfaya Dön
-                            </a>
-                        </div>
+<CascadingAuthenticationState>
+    <Router AppAssembly="@typeof(App).Assembly">
+        <Found Context="routeData">
+            <AuthorizeView>
+                <Authorized>
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </Authorized>
+                <NotAuthorized>
+                    <RouteView RouteData="@routeData" DefaultLayout="@typeof(AuthLayout)" />
+                    <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+                </NotAuthorized>
+            </AuthorizeView>
+        </Found>
+        <NotFound>
+            <PageTitle>Sayfa Bulunamadı</PageTitle>
+            <LayoutView Layout="@typeof(MainLayout)">
+                <div class="container-fluid vh-100 d-flex align-items-center justify-content-center">
+                    <div class="text-center">
+                        <i class="fas fa-exclamation-triangle fa-5x text-warning mb-4"></i>
+                        <h1 class="display-4 text-muted">404</h1>
+                        <h2 class="mb-3">Sayfa Bulunamadı</h2>
+                        <p class="lead mb-4">Aradığınız sayfa mevcut değil veya taşınmış olabilir.</p>
+                        <a href="/" class="btn btn-primary btn-lg">
+                            <i class="fas fa-home me-2"></i>
+                            Ana Sayfaya Dön
+                        </a>
                     </div>
                 </div>
-            </div>
-        </LayoutView>
-    </NotFound>
-</Router>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+
+<div id="blazor-error-ui">
+    <div class="alert alert-danger" role="alert">
+        <h4 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            Beklenmeyen Hata
+        </h4>
+        <p class="mb-3">
+            Uygulamada beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin.
+        </p>
+        <hr>
+        <div class="d-flex justify-content-between">
+            <button class="btn btn-outline-danger" onclick="window.location.reload()">
+                <i class="fas fa-redo me-2"></i>
+                Sayfayı Yenile
+            </button>
+            <small class="text-muted">
+                Sorun devam ederse sistem yöneticisi ile iletişime geçin.
+            </small>
+        </div>
+    </div>
+</div>

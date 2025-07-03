@@ -1,25 +1,22 @@
-﻿namespace CRM.Enums
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace CRM.Enums
 {
+    /// <summary>
+    /// Öncelik seviyeleri - Priority management
+    /// </summary>
     public enum Priority
     {
-        /// <summary>
-        /// Düşük öncelik - acil değil
-        /// </summary>
-        Low = 1,
+        [Display(Name = "Düşük")]
+        Low = 0,
 
-        /// <summary>
-        /// Normal öncelik - standart iş akışı
-        /// </summary>
-        Normal = 2,
+        [Display(Name = "Normal")]
+        Normal = 1,
 
-        /// <summary>
-        /// Yüksek öncelik - önemli
-        /// </summary>
-        High = 3,
+        [Display(Name = "Yüksek")]
+        High = 2,
 
-        /// <summary>
-        /// Kritik öncelik - acil müdahale gerektiren
-        /// </summary>
-        Critical = 4
+        [Display(Name = "Kritik")]
+        Critical = 3
     }
 }

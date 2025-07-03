@@ -1,295 +1,339 @@
 ﻿namespace CRM.Services
 {
     /// <summary>
-    /// Müşteri yönetimi için business logic servisi
-    /// CRUD işlemleri, validation ve business rules içerir
+    /// Müşteri servisi implementation
+    /// Comprehensive customer management
     /// </summary>
-    public class CustomerService
+    public class CustomerService : ICustomerService
     {
         private readonly ICustomerRepository _customerRepository;
-        private readonly LoggingService _loggingService;
+        private readonly IServiceRepository _serviceRepository;
+        private readonly ILoggingService _loggingService;
+        private readonly ILogger<CustomerService> _logger;
 
-        public CustomerService(ICustomerRepository customerRepository, LoggingService loggingService)
+        public CustomerService(
+            ICustomerRepository customerRepository,
+            IServiceRepository serviceRepository,
+            ILoggingService loggingService,
+            ILogger<CustomerService> logger)
         {
-            _customerRepository = customerRepository;
-            _loggingService = loggingService;
-        }
-
-        /// <summary>
-        /// Sayfalama ile müşteri listesini getirir
-        /// Arama ve filtreleme desteği vardır
-        /// </summary>
-        public async Task<(IEnumerable<Customer> customers, int totalCount)> GetCustomersPagedAsync(
-            int pageNumber,
-            int pageSize,
-            string? searchTerm = null,
-            CompanyType? companyType = null,
-            bool includeInactive = false)
-        {
-            try
-            {
-                if (!includeInactive)
-                {
-                    // Sadece aktif müşteriler
-                    if (!string.IsNullOrEmpty(searchTerm))
-                    {
-                        var searchResults = await _customerRepository.SearchCustomersAsync(searchTerm);
-                        var totalCount = searchResults.Count();
-
-                        var pagedResults = searchResults
-                            .Skip((pageNumber - 1) * pageSize)
-                            .Take(pageSize)
-                            .ToList();
-
-                        return (pagedResults, totalCount);
-                    }
-                    else if (companyType.HasValue)
-                    {
-                        var typeResults = await _customerRepository.GetByCompanyTypeAsync(companyType.Value);
-                        var totalCount = typeResults.Count();
-
-                        var pagedResults = typeResults
-                            .Skip((pageNumber - 1) * pageSize)
-                            .Take(pageSize)
-                            .ToList();
-
-                        return (pagedResults, totalCount);
-                    }
-                }
-
-                return await _customerRepository.GetPagedAsync(
-                    pageNumber,
-                    pageSize,
-                    predicate: includeInactive ? null : c => c.IsActive,
-                    orderBy: c => c.CompanyName);
-            }
-            catch (Exception ex)
-            {
-                await _loggingService.LogErrorAsync(ex, "GET_CUSTOMERS_PAGED", "Customer");
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// ID'ye göre müşteri getirir
-        /// Servis geçmişi ile birlikte detaylı bilgi
-        /// </summary>
-        public async Task<Customer?> GetCustomerByIdAsync(int customerId)
-        {
-            try
-            {
-                return await _customerRepository.GetCustomerWithServicesAsync(customerId);
-            }
-            catch (Exception ex)
-            {
-                await _loggingService.LogErrorAsync(ex, "GET_CUSTOMER_BY_ID", "Customer", customerId);
-                throw;
-            }
-        }
-
-        /// <summary>
-        /// Müşteri arama işlemi
-        /// Firma adı, yetkili kişi, telefon ve vergi numarasında arama yapar
-        /// </summary>
-        public async Task<IEnumerable<Customer>> SearchCustomersAsync(string searchTerm)
-        {
-            try
-            {
-                if (string.IsNullOrWhiteSpace(searchTerm))
-                    return await _customerRepository.GetActiveCustomersAsync();
-
-                return await _customerRepository.SearchCustomersAsync(searchTerm);
-            }
-            catch (Exception ex)
-            {
-                await _loggingService.LogErrorAsync(ex, "SEARCH_CUSTOMERS", "Customer");
-                throw;
-            }
+            _customerRepository = customerRepository ?? throw new ArgumentNullException(nameof(customerRepository));
+            _serviceRepository = serviceRepository ?? throw new ArgumentNullException(nameof(serviceRepository));
+            _loggingService = loggingService ?? throw new ArgumentNullException(nameof(loggingService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         /// <summary>
         /// Yeni müşteri oluşturur
-        /// Validation ve business rules kontrolü yapar
         /// </summary>
-        public async Task<ServiceResult<Customer>> CreateCustomerAsync(CustomerDto customerDto, int userId)
+        public async Task<ServiceResult<CustomerDto>> CreateCustomerAsync(CustomerDto customerDto, int createdByUserId)
         {
             try
             {
-                // Validation kontrolü
-                var validationResult = await ValidateCustomerAsync(customerDto);
+                // **VALIDATION**
+                var validationResult = await ValidateCustomerDataAsync(customerDto);
                 if (!validationResult.IsSuccess)
                 {
-                    return ServiceResult<Customer>.Failure(validationResult.ErrorMessage!);
+                    return validationResult;
                 }
 
-                // Vergi numarası benzersizlik kontrolü
-                var isUnique = await _customerRepository.IsTaxNumberUniqueAsync(customerDto.TaxNumber);
-                if (!isUnique)
+                // **BUSINESS RULES**
+                if (!string.IsNullOrEmpty(customerDto.TaxNumber))
                 {
-                    return ServiceResult<Customer>.Failure("Bu vergi numarası/TCKN ile kayıtlı bir müşteri zaten mevcut.");
+                    var existingCustomer = await _customerRepository.GetByTaxNumberAsync(customerDto.TaxNumber);
+                    if (existingCustomer != null)
+                    {
+                        return ServiceResult<CustomerDto>.Failure("Bu vergi numarası zaten kayıtlı.");
+                    }
                 }
 
-                // Entity oluştur
+                // **CREATE ENTITY**
                 var customer = new Customer
                 {
                     CompanyName = customerDto.CompanyName.Trim(),
-                    CompanyType = customerDto.CompanyType,
-                    TaxNumber = customerDto.TaxNumber.Trim(),
-                    TaxOffice = customerDto.TaxOffice?.Trim(),
-                    AuthorizedPersonName = customerDto.AuthorizedPersonName.Trim(),
-                    PhoneNumber = customerDto.PhoneNumber.Trim(),
-                    IsActive = true,
+                    TaxNumber = customerDto.TaxNumber?.Trim(),
+                    ContactPerson = customerDto.ContactPerson?.Trim(),
+                    Email = customerDto.Email?.Trim().ToLower(),
+                    PhoneNumber = customerDto.PhoneNumber?.Trim(),
+                    MobileNumber = customerDto.MobileNumber?.Trim(),
+                    Address = customerDto.Address?.Trim(),
+                    City = customerDto.City?.Trim(),
+                    District = customerDto.District?.Trim(),
+                    PostalCode = customerDto.PostalCode?.Trim(),
+                    CustomerType = customerDto.CustomerType,
+                    IsActive = customerDto.IsActive,
+                    Notes = customerDto.Notes?.Trim(),
+                    CreditLimit = customerDto.CreditLimit,
+                    PaymentTermDays = customerDto.PaymentTermDays,
                     CreatedDate = DateTime.Now
                 };
 
-                var createdCustomer = await _customerRepository.AddAsync(customer);
+                await _customerRepository.AddAsync(customer);
+                await _customerRepository.SaveChangesAsync();
 
-                // İşlemi logla
-                await _loggingService.LogAsync(
-                    "CREATE_CUSTOMER",
-                    "Customer",
-                    createdCustomer.Id,
-                    $"Yeni müşteri oluşturuldu: {createdCustomer.CompanyName}",
-                    userId: userId,
-                    newValues: createdCustomer);
+                // **AUDIT LOG**
+                await _loggingService.LogAsync("CREATE_CUSTOMER", "Customer", customer.Id,
+                    $"Yeni müşteri oluşturuldu: {customer.CompanyName}", userId: createdByUserId);
 
-                return ServiceResult<Customer>.Success(createdCustomer);
+                // **RETURN DTO**
+                var resultDto = MapToDto(customer);
+
+                _logger.LogInformation("Customer created: {CustomerName} by user {UserId}",
+                    customer.CompanyName, createdByUserId);
+
+                return ServiceResult<CustomerDto>.Success(resultDto);
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync(ex, "CREATE_CUSTOMER", "Customer", userId: userId);
-                return ServiceResult<Customer>.Failure("Müşteri oluşturulurken bir hata oluştu.");
+                _logger.LogError(ex, "Error creating customer");
+                await _loggingService.LogErrorAsync(ex, "CREATE_CUSTOMER_ERROR", "Customer", userId: createdByUserId);
+                return ServiceResult<CustomerDto>.Failure("Müşteri oluşturma sırasında bir hata oluştu.");
             }
         }
 
         /// <summary>
         /// Müşteri bilgilerini günceller
-        /// Mevcut kayıt kontrolü ve validation yapar
         /// </summary>
-        public async Task<ServiceResult<Customer>> UpdateCustomerAsync(int customerId, CustomerDto customerDto, int userId)
+        public async Task<ServiceResult<CustomerDto>> UpdateCustomerAsync(CustomerDto customerDto, int updatedByUserId)
         {
             try
             {
-                var existingCustomer = await _customerRepository.GetByIdAsync(customerId);
-                if (existingCustomer == null)
-                {
-                    return ServiceResult<Customer>.Failure("Müşteri bulunamadı.");
-                }
-
-                // Validation kontrolü
-                var validationResult = await ValidateCustomerAsync(customerDto);
+                // **VALIDATION**
+                var validationResult = await ValidateCustomerDataAsync(customerDto);
                 if (!validationResult.IsSuccess)
                 {
-                    return ServiceResult<Customer>.Failure(validationResult.ErrorMessage!);
+                    return validationResult;
                 }
 
-                // Vergi numarası benzersizlik kontrolü (mevcut kayıt hariç)
-                var isUnique = await _customerRepository.IsTaxNumberUniqueAsync(customerDto.TaxNumber, customerId);
-                if (!isUnique)
+                var customer = await _customerRepository.GetByIdAsync(customerDto.Id);
+                if (customer == null)
                 {
-                    return ServiceResult<Customer>.Failure("Bu vergi numarası/TCKN ile kayıtlı başka bir müşteri mevcut.");
+                    return ServiceResult<CustomerDto>.Failure("Müşteri bulunamadı.");
                 }
 
-                // Eski değerleri sakla (audit log için)
-                var oldValues = new
+                // **BUSINESS RULES**
+                if (!string.IsNullOrEmpty(customerDto.TaxNumber) && customer.TaxNumber != customerDto.TaxNumber)
                 {
-                    existingCustomer.CompanyName,
-                    existingCustomer.CompanyType,
-                    existingCustomer.TaxNumber,
-                    existingCustomer.TaxOffice,
-                    existingCustomer.AuthorizedPersonName,
-                    existingCustomer.PhoneNumber
-                };
-
-                // Güncelleme işlemi
-                existingCustomer.CompanyName = customerDto.CompanyName.Trim();
-                existingCustomer.CompanyType = customerDto.CompanyType;
-                existingCustomer.TaxNumber = customerDto.TaxNumber.Trim();
-                existingCustomer.TaxOffice = customerDto.TaxOffice?.Trim();
-                existingCustomer.AuthorizedPersonName = customerDto.AuthorizedPersonName.Trim();
-                existingCustomer.PhoneNumber = customerDto.PhoneNumber.Trim();
-                existingCustomer.UpdatedDate = DateTime.Now;
-
-                var updatedCustomer = await _customerRepository.UpdateAsync(existingCustomer);
-
-                // İşlemi logla
-                await _loggingService.LogAsync(
-                    "UPDATE_CUSTOMER",
-                    "Customer",
-                    updatedCustomer.Id,
-                    $"Müşteri güncellendi: {updatedCustomer.CompanyName}",
-                    userId: userId,
-                    oldValues: oldValues,
-                    newValues: new
+                    var existingCustomer = await _customerRepository.GetByTaxNumberAsync(customerDto.TaxNumber);
+                    if (existingCustomer != null && existingCustomer.Id != customer.Id)
                     {
-                        updatedCustomer.CompanyName,
-                        updatedCustomer.CompanyType,
-                        updatedCustomer.TaxNumber,
-                        updatedCustomer.TaxOffice,
-                        updatedCustomer.AuthorizedPersonName,
-                        updatedCustomer.PhoneNumber
-                    });
+                        return ServiceResult<CustomerDto>.Failure("Bu vergi numarası başka bir müşteri tarafından kullanılıyor.");
+                    }
+                }
 
-                return ServiceResult<Customer>.Success(updatedCustomer);
+                // **UPDATE ENTITY**
+                customer.CompanyName = customerDto.CompanyName.Trim();
+                customer.TaxNumber = customerDto.TaxNumber?.Trim();
+                customer.ContactPerson = customerDto.ContactPerson?.Trim();
+                customer.Email = customerDto.Email?.Trim().ToLower();
+                customer.PhoneNumber = customerDto.PhoneNumber?.Trim();
+                customer.MobileNumber = customerDto.MobileNumber?.Trim();
+                customer.Address = customerDto.Address?.Trim();
+                customer.City = customerDto.City?.Trim();
+                customer.District = customerDto.District?.Trim();
+                customer.PostalCode = customerDto.PostalCode?.Trim();
+                customer.CustomerType = customerDto.CustomerType;
+                customer.IsActive = customerDto.IsActive;
+                customer.Notes = customerDto.Notes?.Trim();
+                customer.CreditLimit = customerDto.CreditLimit;
+                customer.PaymentTermDays = customerDto.PaymentTermDays;
+                customer.UpdatedDate = DateTime.Now;
+
+                await _customerRepository.UpdateAsync(customer);
+                await _customerRepository.SaveChangesAsync();
+
+                // **AUDIT LOG**
+                await _loggingService.LogAsync("UPDATE_CUSTOMER", "Customer", customer.Id,
+                    $"Müşteri güncellendi: {customer.CompanyName}", userId: updatedByUserId);
+
+                var resultDto = MapToDto(customer);
+
+                _logger.LogInformation("Customer updated: {CustomerName} by user {UserId}",
+                    customer.CompanyName, updatedByUserId);
+
+                return ServiceResult<CustomerDto>.Success(resultDto);
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync(ex, "UPDATE_CUSTOMER", "Customer", customerId, userId: userId);
-                return ServiceResult<Customer>.Failure("Müşteri güncellenirken bir hata oluştu.");
+                _logger.LogError(ex, "Error updating customer: {CustomerId}", customerDto.Id);
+                await _loggingService.LogErrorAsync(ex, "UPDATE_CUSTOMER_ERROR", "Customer", customerDto.Id, userId: updatedByUserId);
+                return ServiceResult<CustomerDto>.Failure("Müşteri güncelleme sırasında bir hata oluştu.");
             }
         }
 
         /// <summary>
-        /// Müşteriyi pasif hale getirir (soft delete)
-        /// Müşteriye ait aktif servis varsa silme işlemine izin vermez
+        /// Müşteriyi siler (soft delete)
         /// </summary>
-        public async Task<ServiceResult<bool>> DeactivateCustomerAsync(int customerId, int userId)
+        public async Task<ServiceResult<bool>> DeleteCustomerAsync(int customerId, int deletedByUserId)
         {
             try
             {
-                var customer = await _customerRepository.GetCustomerWithServicesAsync(customerId);
+                var customer = await _customerRepository.GetByIdAsync(customerId);
                 if (customer == null)
                 {
                     return ServiceResult<bool>.Failure("Müşteri bulunamadı.");
                 }
 
-                // Aktif servis kontrolü
-                var activeServices = customer.Services.Where(s =>
-                    s.Status == ServiceStatus.Pending ||
-                    s.Status == ServiceStatus.InProgress).ToList();
-
-                if (activeServices.Any())
+                // **BUSINESS RULES**
+                var hasActiveServices = await _customerRepository.HasActiveServicesAsync(customerId);
+                if (hasActiveServices)
                 {
-                    return ServiceResult<bool>.Failure(
-                        $"Bu müşterinin {activeServices.Count} adet aktif servisi bulunuyor. " +
-                        "Önce servisleri tamamlayın veya iptal edin.");
+                    return ServiceResult<bool>.Failure("Aktif servisleri olan müşteri silinemez.");
                 }
 
-                customer.IsActive = false;
-                customer.UpdatedDate = DateTime.Now;
-                await _customerRepository.UpdateAsync(customer);
+                // **SOFT DELETE**
+                await _customerRepository.DeleteAsync(customer);
+                await _customerRepository.SaveChangesAsync();
 
-                // İşlemi logla
-                await _loggingService.LogAsync(
-                    "DEACTIVATE_CUSTOMER",
-                    "Customer",
-                    customerId,
-                    $"Müşteri pasif hale getirildi: {customer.CompanyName}",
-                    userId: userId);
+                // **AUDIT LOG**
+                await _loggingService.LogAsync("DELETE_CUSTOMER", "Customer", customerId,
+                    $"Müşteri silindi: {customer.CompanyName}", userId: deletedByUserId);
+
+                _logger.LogInformation("Customer deleted: {CustomerName} by user {UserId}",
+                    customer.CompanyName, deletedByUserId);
 
                 return ServiceResult<bool>.Success(true);
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync(ex, "DEACTIVATE_CUSTOMER", "Customer", customerId, userId: userId);
-                return ServiceResult<bool>.Failure("Müşteri pasif hale getirilirken bir hata oluştu.");
+                _logger.LogError(ex, "Error deleting customer: {CustomerId}", customerId);
+                await _loggingService.LogErrorAsync(ex, "DELETE_CUSTOMER_ERROR", "Customer", customerId, userId: deletedByUserId);
+                return ServiceResult<bool>.Failure("Müşteri silme sırasında bir hata oluştu.");
             }
         }
 
         /// <summary>
-        /// Müşteriyi tekrar aktif hale getirir
+        /// ID'ye göre müşteri getirir
         /// </summary>
-        public async Task<ServiceResult<bool>> ActivateCustomerAsync(int customerId, int userId)
+        public async Task<ServiceResult<CustomerDto>> GetCustomerByIdAsync(int customerId)
+        {
+            try
+            {
+                var customer = await _customerRepository.GetByIdAsync(customerId);
+                if (customer == null)
+                {
+                    return ServiceResult<CustomerDto>.Failure("Müşteri bulunamadı.");
+                }
+
+                var customerDto = MapToDto(customer);
+
+                // **ADDITIONAL DATA**
+                customerDto.TotalServiceAmount = await _customerRepository.GetTotalServiceAmountAsync(customerId);
+
+                return ServiceResult<CustomerDto>.Success(customerDto);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer: {CustomerId}", customerId);
+                return ServiceResult<CustomerDto>.Failure("Müşteri getirme sırasında bir hata oluştu.");
+            }
+        }
+
+        /// <summary>
+        /// Müşterileri sayfalı şekilde getirir
+        /// </summary>
+        public async Task<ServiceResult<PagedResultDto<CustomerDto>>> GetCustomersPagedAsync(int pageNumber, int pageSize, string? searchTerm = null)
+        {
+            try
+            {
+                var result = await _customerRepository.GetCustomersPagedAsync(pageNumber, pageSize, searchTerm);
+
+                var customerDtos = result.Customers.Select(MapToDto).ToList();
+
+                var pagedResult = new PagedResultDto<CustomerDto>
+                {
+                    Items = customerDtos,
+                    TotalCount = result.TotalCount,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize
+                };
+
+                return ServiceResult<PagedResultDto<CustomerDto>>.Success(pagedResult);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customers paged");
+                return ServiceResult<PagedResultDto<CustomerDto>>.Failure("Müşteri listesi getirme sırasında bir hata oluştu.");
+            }
+        }
+
+        /// <summary>
+        /// Müşteri arama yapar
+        /// </summary>
+        public async Task<ServiceResult<IEnumerable<CustomerSearchDto>>> SearchCustomersAsync(string searchTerm)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(searchTerm) || searchTerm.Length < 2)
+                {
+                    return ServiceResult<IEnumerable<CustomerSearchDto>>.Success(Enumerable.Empty<CustomerSearchDto>());
+                }
+
+                var customers = await _customerRepository.SearchCustomersAsync(searchTerm);
+
+                var searchDtos = customers.Select(c => new CustomerSearchDto
+                {
+                    Id = c.Id,
+                    CompanyName = c.CompanyName,
+                    ContactPerson = c.ContactPerson,
+                    Email = c.Email,
+                    PhoneNumber = c.PhoneNumber,
+                    CustomerType = c.CustomerType
+                }).ToList();
+
+                return ServiceResult<IEnumerable<CustomerSearchDto>>.Success(searchDtos);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error searching customers with term: {SearchTerm}", searchTerm);
+                return ServiceResult<IEnumerable<CustomerSearchDto>>.Failure("Müşteri arama sırasında bir hata oluştu.");
+            }
+        }
+
+        /// <summary>
+        /// Müşteri istatistiklerini getirir
+        /// </summary>
+        public async Task<ServiceResult<CustomerStatsDto>> GetCustomerStatsAsync()
+        {
+            try
+            {
+                var allCustomers = await _customerRepository.GetAllAsync();
+
+                var stats = new CustomerStatsDto
+                {
+                    TotalCustomers = allCustomers.Count(),
+                    ActiveCustomers = allCustomers.Count(c => c.IsActive),
+                    InactiveCustomers = allCustomers.Count(c => !c.IsActive),
+                    CorporateCustomers = allCustomers.Count(c => c.CustomerType == CustomerType.Corporate),
+                    IndividualCustomers = allCustomers.Count(c => c.CustomerType == CustomerType.Individual),
+                    DealerCustomers = allCustomers.Count(c => c.CustomerType == CustomerType.Dealer)
+                };
+
+                // **CALCULATE REVENUE STATS**
+                foreach (var customer in allCustomers)
+                {
+                    var totalAmount = await _customerRepository.GetTotalServiceAmountAsync(customer.Id);
+                    stats.TotalServiceRevenue += totalAmount;
+                }
+
+                if (stats.TotalCustomers > 0)
+                {
+                    stats.AverageServiceValue = stats.TotalServiceRevenue / stats.TotalCustomers;
+                }
+
+                return ServiceResult<CustomerStatsDto>.Success(stats);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting customer stats");
+                return ServiceResult<CustomerStatsDto>.Failure("Müşteri istatistikleri alınırken hata oluştu.");
+            }
+        }
+
+        /// <summary>
+        /// Müşteriyi aktif hale getirir
+        /// </summary>
+        public async Task<ServiceResult<bool>> ActivateCustomerAsync(int customerId, int activatedByUserId)
         {
             try
             {
@@ -301,182 +345,139 @@
 
                 customer.IsActive = true;
                 customer.UpdatedDate = DateTime.Now;
-                await _customerRepository.UpdateAsync(customer);
 
-                // İşlemi logla
-                await _loggingService.LogAsync(
-                    "ACTIVATE_CUSTOMER",
-                    "Customer",
-                    customerId,
-                    $"Müşteri aktif hale getirildi: {customer.CompanyName}",
-                    userId: userId);
+                await _customerRepository.UpdateAsync(customer);
+                await _customerRepository.SaveChangesAsync();
+
+                await _loggingService.LogAsync("ACTIVATE_CUSTOMER", "Customer", customerId,
+                    $"Müşteri aktif hale getirildi: {customer.CompanyName}", userId: activatedByUserId);
 
                 return ServiceResult<bool>.Success(true);
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync(ex, "ACTIVATE_CUSTOMER", "Customer", customerId, userId: userId);
-                return ServiceResult<bool>.Failure("Müşteri aktif hale getirilirken bir hata oluştu.");
+                _logger.LogError(ex, "Error activating customer: {CustomerId}", customerId);
+                return ServiceResult<bool>.Failure("Müşteri aktifleştirme sırasında hata oluştu.");
             }
         }
 
         /// <summary>
-        /// Müşteri istatistiklerini getirir
-        /// Dashboard ve raporlama için kullanılır
+        /// Müşteriyi pasif hale getirir
         /// </summary>
-        public async Task<CustomerStatsDto> GetCustomerStatsAsync(int customerId)
+        public async Task<ServiceResult<bool>> DeactivateCustomerAsync(int customerId, int deactivatedByUserId)
         {
             try
             {
-                var customer = await _customerRepository.GetCustomerWithServicesAsync(customerId);
+                var customer = await _customerRepository.GetByIdAsync(customerId);
                 if (customer == null)
                 {
-                    return new CustomerStatsDto();
+                    return ServiceResult<bool>.Failure("Müşteri bulunamadı.");
                 }
 
-                var stats = new CustomerStatsDto
+                // **BUSINESS RULES**
+                var hasActiveServices = await _customerRepository.HasActiveServicesAsync(customerId);
+                if (hasActiveServices)
                 {
-                    TotalServices = customer.Services.Count,
-                    CompletedServices = customer.Services.Count(s => s.Status == ServiceStatus.Completed),
-                    ActiveServices = customer.Services.Count(s =>
-                        s.Status == ServiceStatus.Pending || s.Status == ServiceStatus.InProgress),
-                    TotalAmount = customer.Services
-                        .Where(s => s.ServiceAmount.HasValue && s.Status == ServiceStatus.Completed)
-                        .Sum(s => s.ServiceAmount!.Value),
-                    LastServiceDate = customer.Services
-                        .OrderByDescending(s => s.CreatedDate)
-                        .FirstOrDefault()?.CreatedDate,
-                    AverageServiceAmount = customer.Services
-                        .Where(s => s.ServiceAmount.HasValue && s.Status == ServiceStatus.Completed)
-                        .Average(s => s.ServiceAmount!.Value) ?? 0
-                };
+                    return ServiceResult<bool>.Failure("Aktif servisleri olan müşteri pasif hale getirilemez.");
+                }
 
-                return stats;
+                customer.IsActive = false;
+                customer.UpdatedDate = DateTime.Now;
+
+                await _customerRepository.UpdateAsync(customer);
+                await _customerRepository.SaveChangesAsync();
+
+                await _loggingService.LogAsync("DEACTIVATE_CUSTOMER", "Customer", customerId,
+                    $"Müşteri pasif hale getirildi: {customer.CompanyName}", userId: deactivatedByUserId);
+
+                return ServiceResult<bool>.Success(true);
             }
             catch (Exception ex)
             {
-                await _loggingService.LogErrorAsync(ex, "GET_CUSTOMER_STATS", "Customer", customerId);
-                return new CustomerStatsDto();
+                _logger.LogError(ex, "Error deactivating customer: {CustomerId}", customerId);
+                return ServiceResult<bool>.Failure("Müşteri pasifleştirme sırasında hata oluştu.");
             }
         }
 
         /// <summary>
-        /// Müşteri validation işlemi
-        /// Business rules ve data validation kontrolü
+        /// Müşteri verilerini doğrular
         /// </summary>
-        private async Task<ServiceResult<bool>> ValidateCustomerAsync(CustomerDto customerDto)
+        public async Task<ServiceResult<bool>> ValidateCustomerDataAsync(CustomerDto customerDto)
         {
-            // Required field kontrolü
+            var errors = new List<string>();
+
+            // **REQUIRED FIELDS**
             if (string.IsNullOrWhiteSpace(customerDto.CompanyName))
-                return ServiceResult<bool>.Failure("Firma adı gereklidir.");
+                errors.Add("Şirket adı gereklidir.");
 
-            if (string.IsNullOrWhiteSpace(customerDto.TaxNumber))
-                return ServiceResult<bool>.Failure("Vergi numarası/TCKN gereklidir.");
-
-            if (string.IsNullOrWhiteSpace(customerDto.AuthorizedPersonName))
-                return ServiceResult<bool>.Failure("Yetkili kişi adı gereklidir.");
-
-            if (string.IsNullOrWhiteSpace(customerDto.PhoneNumber))
-                return ServiceResult<bool>.Failure("Telefon numarası gereklidir.");
-
-            // Vergi numarası format kontrolü
-            if (!IsValidTaxNumber(customerDto.TaxNumber, customerDto.CompanyType))
+            // **BUSINESS VALIDATIONS**
+            if (!string.IsNullOrEmpty(customerDto.TaxNumber))
             {
-                return ServiceResult<bool>.Failure(
-                    customerDto.CompanyType == CompanyType.Individual
-                        ? "Geçerli bir TCKN giriniz (11 haneli)."
-                        : "Geçerli bir vergi numarası giriniz (10 haneli).");
+                if (customerDto.TaxNumber.Length < 10 || customerDto.TaxNumber.Length > 11)
+                    errors.Add("Vergi numarası 10-11 haneli olmalıdır.");
+
+                if (!customerDto.TaxNumber.All(char.IsDigit))
+                    errors.Add("Vergi numarası sadece rakam içermelidir.");
             }
 
-            // Tüzel kişi için vergi dairesi zorunlu
-            if (customerDto.CompanyType == CompanyType.Corporate && string.IsNullOrWhiteSpace(customerDto.TaxOffice))
+            if (!string.IsNullOrEmpty(customerDto.Email))
             {
-                return ServiceResult<bool>.Failure("Tüzel kişi müşteriler için vergi dairesi gereklidir.");
+                if (!IsValidEmail(customerDto.Email))
+                    errors.Add("Geçerli bir e-posta adresi giriniz.");
             }
 
-            // Telefon numarası format kontrolü
-            if (!IsValidPhoneNumber(customerDto.PhoneNumber))
+            if (customerDto.CreditLimit.HasValue && customerDto.CreditLimit.Value < 0)
+                errors.Add("Kredi limiti negatif olamaz.");
+
+            if (customerDto.PaymentTermDays < 1 || customerDto.PaymentTermDays > 365)
+                errors.Add("Ödeme vadesi 1-365 gün arasında olmalıdır.");
+
+            if (errors.Any())
             {
-                return ServiceResult<bool>.Failure("Geçerli bir telefon numarası giriniz.");
+                return ServiceResult<bool>.ValidationFailure(errors);
             }
 
             return ServiceResult<bool>.Success(true);
         }
 
-        /// <summary>
-        /// Vergi numarası/TCKN format kontrolü
-        /// </summary>
-        private bool IsValidTaxNumber(string taxNumber, CompanyType companyType)
+        // **PRIVATE HELPER METHODS**
+
+        private static CustomerDto MapToDto(Customer customer)
         {
-            if (string.IsNullOrWhiteSpace(taxNumber))
-                return false;
-
-            var cleanNumber = taxNumber.Trim().Replace(" ", "").Replace("-", "");
-
-            if (companyType == CompanyType.Individual)
+            return new CustomerDto
             {
-                // TCKN kontrolü - 11 hane olmalı ve sadece rakam
-                return cleanNumber.Length == 11 && cleanNumber.All(char.IsDigit);
-            }
-            else
+                Id = customer.Id,
+                CompanyName = customer.CompanyName,
+                TaxNumber = customer.TaxNumber,
+                ContactPerson = customer.ContactPerson,
+                Email = customer.Email,
+                PhoneNumber = customer.PhoneNumber,
+                MobileNumber = customer.MobileNumber,
+                Address = customer.Address,
+                City = customer.City,
+                District = customer.District,
+                PostalCode = customer.PostalCode,
+                CustomerType = customer.CustomerType,
+                IsActive = customer.IsActive,
+                Notes = customer.Notes,
+                CreditLimit = customer.CreditLimit,
+                PaymentTermDays = customer.PaymentTermDays,
+                CreatedDate = customer.CreatedDate,
+                UpdatedDate = customer.UpdatedDate
+            };
+        }
+
+        private static bool IsValidEmail(string email)
+        {
+            try
             {
-                // Vergi numarası kontrolü - 10 hane olmalı ve sadece rakam
-                return cleanNumber.Length == 10 && cleanNumber.All(char.IsDigit);
+                var addr = new System.Net.Mail.MailAddress(email);
+                return addr.Address == email;
             }
-        }
-
-        /// <summary>
-        /// Telefon numarası format kontrolü
-        /// </summary>
-        private bool IsValidPhoneNumber(string phoneNumber)
-        {
-            if (string.IsNullOrWhiteSpace(phoneNumber))
+            catch
+            {
                 return false;
-
-            var cleanNumber = phoneNumber.Trim()
-                .Replace(" ", "")
-                .Replace("-", "")
-                .Replace("(", "")
-                .Replace(")", "")
-                .Replace("+90", "");
-
-            // 10 haneli telefon numarası (0 ile başlayan 11 haneli de kabul edilir)
-            return (cleanNumber.Length == 10 || cleanNumber.Length == 11) &&
-                   cleanNumber.All(char.IsDigit);
-        }
-    }
-
-    /// <summary>
-    /// Müşteri istatistikleri için DTO
-    /// </summary>
-    public class CustomerStatsDto
-    {
-        public int TotalServices { get; set; }
-        public int CompletedServices { get; set; }
-        public int ActiveServices { get; set; }
-        public decimal TotalAmount { get; set; }
-        public decimal AverageServiceAmount { get; set; }
-        public DateTime? LastServiceDate { get; set; }
-    }
-
-    /// <summary>
-    /// Generic service result wrapper
-    /// API response standardization için kullanılır
-    /// </summary>
-    public class ServiceResult<T>
-    {
-        public bool IsSuccess { get; set; }
-        public T? Data { get; set; }
-        public string? ErrorMessage { get; set; }
-
-        public static ServiceResult<T> Success(T data)
-        {
-            return new ServiceResult<T> { IsSuccess = true, Data = data };
-        }
-
-        public static ServiceResult<T> Failure(string errorMessage)
-        {
-            return new ServiceResult<T> { IsSuccess = false, ErrorMessage = errorMessage };
+            }
         }
     }
 }

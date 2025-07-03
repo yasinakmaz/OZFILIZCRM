@@ -3,67 +3,67 @@
 namespace CRM.DTOs
 {
     /// <summary>
-    /// Kullanıcı form işlemleri için veri transfer objesi
-    /// Validation attribute'ları ile client-side validation sağlar
+    /// Kullanıcı bilgileri için DTO
+    /// CRUD işlemlerinde kullanılır
     /// </summary>
     public class UserDto
     {
-        /// <summary>
-        /// Kullanıcı ID'si - güncellemeler için kullanılır
-        /// </summary>
         public int Id { get; set; }
 
-        /// <summary>
-        /// Kullanıcı adı - sisteme giriş için kullanılır
-        /// </summary>
         [Required(ErrorMessage = "Kullanıcı adı gereklidir")]
         [StringLength(50, MinimumLength = 3, ErrorMessage = "Kullanıcı adı 3-50 karakter arasında olmalıdır")]
         public string Username { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Email adresi - alternatif giriş ve bildirimler için
-        /// </summary>
-        [Required(ErrorMessage = "Email adresi gereklidir")]
-        [EmailAddress(ErrorMessage = "Geçerli bir email adresi giriniz")]
-        [StringLength(200, ErrorMessage = "Email adresi en fazla 200 karakter olabilir")]
+        [Required(ErrorMessage = "E-posta adresi gereklidir")]
+        [EmailAddress(ErrorMessage = "Geçerli bir e-posta adresi giriniz")]
+        [StringLength(100, ErrorMessage = "E-posta adresi en fazla 100 karakter olabilir")]
         public string Email { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Şifre - sadece yeni kullanıcı oluştururken zorunlu
-        /// </summary>
-        [StringLength(100, MinimumLength = 6, ErrorMessage = "Şifre 6-100 karakter arasında olmalıdır")]
-        public string? Password { get; set; }
+        [Required(ErrorMessage = "Ad gereklidir")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "Ad 2-50 karakter arasında olmalıdır")]
+        public string FirstName { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Şifre tekrarı - UI'da doğrulama için
-        /// </summary>
-        [Compare("Password", ErrorMessage = "Şifreler eşleşmiyor")]
-        public string? PasswordConfirm { get; set; }
+        [Required(ErrorMessage = "Soyad gereklidir")]
+        [StringLength(50, MinimumLength = 2, ErrorMessage = "Soyad 2-50 karakter arasında olmalıdır")]
+        public string LastName { get; set; } = string.Empty;
 
-        /// <summary>
-        /// Kullanıcı rolü
-        /// </summary>
+        [Phone(ErrorMessage = "Geçerli bir telefon numarası giriniz")]
+        [StringLength(15, ErrorMessage = "Telefon numarası en fazla 15 karakter olabilir")]
+        public string? PhoneNumber { get; set; }
+
         [Required(ErrorMessage = "Kullanıcı rolü seçilmelidir")]
         public UserRole Role { get; set; }
 
-        /// <summary>
-        /// Profil resmi - Base64 string formatında
-        /// </summary>
-        public string? ProfileImage { get; set; }
-
-        /// <summary>
-        /// Kullanıcının aktif olup olmadığı
-        /// </summary>
         public bool IsActive { get; set; } = true;
 
-        /// <summary>
-        /// Hesap oluşturulma tarihi - readonly
-        /// </summary>
-        public DateTime CreatedDate { get; set; }
+        public DateTime? LastLoginDate { get; set; }
 
-        /// <summary>
-        /// Son güncelleme tarihi - readonly
-        /// </summary>
+        [StringLength(500, ErrorMessage = "Profil resmi çok büyük")]
+        public string? ProfileImageBase64 { get; set; }
+
+        [StringLength(255, ErrorMessage = "Notlar en fazla 255 karakter olabilir")]
+        public string? Notes { get; set; }
+
+        public DateTime CreatedDate { get; set; }
         public DateTime? UpdatedDate { get; set; }
+
+        // **COMPUTED PROPERTIES**
+        public string FullName => $"{FirstName} {LastName}";
+        public string DisplayName => $"{FullName} ({Username})";
+        public string RoleDisplayName => GetRoleDisplayName(Role);
+        public bool IsOnline => LastLoginDate.HasValue && LastLoginDate.Value > DateTime.Now.AddMinutes(-30);
+
+        private static string GetRoleDisplayName(UserRole role)
+        {
+            return role switch
+            {
+                UserRole.SuperAdmin => "Süper Admin",
+                UserRole.Admin => "Admin",
+                UserRole.Technician => "Teknisyen",
+                UserRole.CustomerRepresentative => "Müşteri Temsilcisi",
+                UserRole.User => "Kullanıcı",
+                _ => role.ToString()
+            };
+        }
     }
 }

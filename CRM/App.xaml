@@ -1,16 +1,12 @@
 ﻿<?xml version="1.0" encoding="UTF-8" ?>
-<Application x:Class="CRM.App"
-             xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
+<?xml version="1.0" encoding="UTF-8" ?>
+<Application xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-             xmlns:local="clr-namespace:CRM">
+             xmlns:local="clr-namespace:CRM"
+             x:Class="CRM.App">
     <Application.Resources>
         <ResourceDictionary>
-            <ResourceDictionary.MergedDictionaries>
-                <ResourceDictionary Source="Resources/Styles/Colors.xaml" />
-                <ResourceDictionary Source="Resources/Styles/Styles.xaml" />
-            </ResourceDictionary.MergedDictionaries>
-
-            <!-- Global application colors -->
+            <!-- Global App Colors -->
             <Color x:Key="Primary">#007bff</Color>
             <Color x:Key="Secondary">#6c757d</Color>
             <Color x:Key="Success">#28a745</Color>
@@ -20,13 +16,24 @@
             <Color x:Key="Light">#f8f9fa</Color>
             <Color x:Key="Dark">#343a40</Color>
 
-            <!-- Application specific colors -->
-            <Color x:Key="AppPrimary">#007bff</Color>
-            <Color x:Key="AppBackground">#f5f6fa</Color>
-            <Color x:Key="CardBackground">#ffffff</Color>
-            <Color x:Key="TextPrimary">#343a40</Color>
-            <Color x:Key="TextSecondary">#6c757d</Color>
-            <Color x:Key="BorderColor">#e9ecef</Color>
+            <!-- App Styles -->
+            <Style TargetType="Label">
+                <Setter Property="TextColor" Value="{StaticResource Dark}" />
+                <Setter Property="FontFamily" Value="OpenSansRegular" />
+            </Style>
+
+            <Style TargetType="Button">
+                <Setter Property="BackgroundColor" Value="{StaticResource Primary}" />
+                <Setter Property="TextColor" Value="White" />
+                <Setter Property="FontFamily" Value="OpenSansSemibold" />
+                <Setter Property="CornerRadius" Value="8" />
+                <Setter Property="Padding" Value="14,10" />
+            </Style>
+
+            <!-- BlazorWebView Styles -->
+            <Style TargetType="Microsoft.AspNetCore.Components.WebView.Maui.BlazorWebView">
+                <Setter Property="BackgroundColor" Value="{StaticResource Light}" />
+            </Style>
         </ResourceDictionary>
     </Application.Resources>
 </Application>

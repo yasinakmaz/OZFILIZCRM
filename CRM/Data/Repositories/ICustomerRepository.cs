@@ -1,19 +1,19 @@
 ﻿namespace CRM.Data.Repositories
 {
     /// <summary>
-    /// Customer entity'si için özelleştirilmiş repository interface
-    /// Müşteri yönetimi ve arama işlemleri için özel metodlar içerir
+    /// Customer entity için özel repository interface
+    /// Customer management ve search operations
     /// </summary>
     public interface ICustomerRepository : IRepository<Customer>
     {
-        Task<Customer?> GetByTaxNumberAsync(string taxNumber);
-        Task<IEnumerable<Customer>> GetByCompanyTypeAsync(CompanyType companyType);
-        Task<IEnumerable<Customer>> GetActiveCustomersAsync();
         Task<IEnumerable<Customer>> SearchCustomersAsync(string searchTerm);
-        Task<bool> IsTaxNumberUniqueAsync(string taxNumber, int? excludeCustomerId = null);
-        Task<(IEnumerable<Customer> customers, int totalCount)> GetCustomersWithServicesAsync(
+        Task<Customer?> GetByCompanyNameAsync(string companyName);
+        Task<Customer?> GetByTaxNumberAsync(string taxNumber);
+        Task<IEnumerable<Customer>> GetActiveCustomersAsync();
+        Task<IEnumerable<Customer>> GetCustomersWithPendingServicesAsync();
+        Task<(IEnumerable<Customer> Customers, int TotalCount)> GetCustomersPagedAsync(
             int pageNumber, int pageSize, string? searchTerm = null);
-        Task<Customer?> GetCustomerWithServicesAsync(int customerId);
-        Task<IEnumerable<Customer>> GetTopCustomersByServiceCountAsync(int count = 10);
+        Task<bool> HasActiveServicesAsync(int customerId);
+        Task<decimal> GetTotalServiceAmountAsync(int customerId);
     }
 }

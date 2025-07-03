@@ -1,0 +1,81 @@
+﻿@inherits LayoutView
+
+<div class="auth-layout">
+    <div class="auth-container">
+        <div class="auth-header text-center mb-4">
+            <div class="logo mb-3">
+                <i class="fas fa-tools fa-3x text-primary"></i>
+            </div>
+            <h1 class="h3 text-primary fw-bold">Teknik Servis CRM</h1>
+            <p class="text-muted">Profesyonel Teknik Servis Yönetim Sistemi</p>
+        </div>
+
+        <div class="auth-content">
+            <ErrorBoundary>
+                <ChildContent>
+                    @Body
+                </ChildContent>
+                <ErrorContent Context="exception">
+                    <div class="alert alert-danger" role="alert">
+                        <h5 class="alert-heading">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Giriş Hatası
+                        </h5>
+                        <p class="mb-0">
+                            Giriş işlemi sırasında bir hata oluştu. 
+                            Lütfen sayfayı yenileyin ve tekrar deneyin.
+                        </p>
+                    </div>
+                </ErrorContent>
+            </ErrorBoundary>
+        </div>
+
+        <div class="auth-footer text-center mt-4">
+            <small class="text-muted">
+                © 2024 Teknik Servis A.Ş. Tüm hakları saklıdır.
+            </small>
+        </div>
+    </div>
+</div>
+
+<style>
+    .auth-layout {
+        min-height: 100vh;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+
+    .auth-container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        padding: 40px;
+        width: 100%;
+        max-width: 450px;
+        backdrop-filter: blur(10px);
+    }
+
+    .auth-content {
+        margin: 30px 0;
+    }
+
+    .logo {
+        animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+        0% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    @media (max-width: 576px) {
+        .auth-container {
+            padding: 25px;
+            margin: 10px;
+        }
+    }
+</style>

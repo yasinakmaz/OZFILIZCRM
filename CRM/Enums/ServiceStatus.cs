@@ -1,30 +1,34 @@
-﻿namespace CRM.Enums
+﻿using System.ComponentModel.DataAnnotations;
+
+namespace CRM.Enums
 {
+    /// <summary>
+    /// Servis durumları - Workflow management
+    /// </summary>
     public enum ServiceStatus
     {
-        /// <summary>
-        /// Yeni oluşturulmuş, henüz kimseye atanmamış servis
-        /// </summary>
-        Pending = 1,
+        [Display(Name = "Beklemede")]
+        Pending = 0,
 
-        /// <summary>
-        /// Personel atanmış ve aktif olarak çalışılan servis
-        /// </summary>
+        [Display(Name = "Kabul Edildi")]
+        Accepted = 1,
+
+        [Display(Name = "Devam Ediyor")]
         InProgress = 2,
 
-        /// <summary>
-        /// Tamamlanmış ama henüz admin onayı bekleyen servis
-        /// </summary>
-        WaitingApproval = 3,
+        [Display(Name = "Parça Bekleniyor")]
+        WaitingForParts = 3,
 
-        /// <summary>
-        /// Admin tarafından onaylanmış, faturalandırılabilir servis
-        /// </summary>
-        Completed = 4,
+        [Display(Name = "Test Ediliyor")]
+        Testing = 4,
 
-        /// <summary>
-        /// İptal edilmiş servis
-        /// </summary>
-        Cancelled = 5
+        [Display(Name = "Tamamlandı")]
+        Completed = 5,
+
+        [Display(Name = "İptal Edildi")]
+        Cancelled = 6,
+
+        [Display(Name = "Reddedildi")]
+        Rejected = 7
     }
 }

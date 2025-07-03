@@ -1,82 +1,76 @@
-﻿namespace CRM
+﻿using Microsoft.Extensions.Logging;
+
+namespace CRM
 {
     /// <summary>
-/// Ana sayfa sınıfı
-/// Blazor WebView'ı barındırır ve uygulama başlatma işlemlerini yönetir
-/// </summary>
-public partial class MainPage : ContentPage
-{
-    private readonly AuthService _authService;
-    private readonly LoggingService _loggingService;
-
-    public MainPage(AuthService authService, LoggingService loggingService)
-    {
-        InitializeComponent();
-        
-        _authService = authService;
-        _loggingService = loggingService;
-        
-        // Blazor WebView loading event'ları
-        blazorWebView.BlazorWebViewInitialized += OnBlazorWebViewInitialized;
-        blazorWebView.UrlLoading += OnUrlLoading;
-    }
-
-    /// <summary>
-    /// Sayfa görünür hale geldiğinde çalışır
+    /// Ana sayfa - Blazor WebView container
     /// </summary>
-    protected override async void OnAppearing()
+    public partial class MainPage : ContentPage
     {
-        base.OnAppearing();
-        
-        try
+        private readonly ILogger<MainPage> _logger;
+
+        public MainPage()
         {
-            // Loading overlay'ı göster
-            loadingOverlay.IsVisible = true;
-            
-            // Kısa bir loading delay (smooth UX için)
-            await Task.Delay(1000);
-            
-            // Loading overlay'ı gizle
-            loadingOverlay.IsVisible = false;
+            InitializeComponent();
+
+            // Dependency injection through Handler
+            _logger = Handler?.MauiContext?.Services?.GetService<ILogger<MainPage>>() ??
+                     Microsoft.Extensions.Logging.Abstractions.NullLogger<MainPage>.Instance;
+
+            _logger.LogInformation("📄 MainPage initialized");
+
+            // **BLAZOR WEBVIEW EVENT HANDLERS**
+            blazorWebView.BlazorWebViewInitialized += OnBlazorWebViewInitialized;
+            blazorWebView.UrlLoading += OnUrlLoading;
         }
-        catch (Exception ex)
+
+        /// <summary>
+        /// Blazor WebView başlatıldığında çalışır
+        /// </summary>
+        private void OnBlazorWebViewInitialized(object? sender, Microsoft.AspNetCore.Components.WebView.BlazorWebViewInitializedEventArgs e)
         {
-            await _loggingService.LogErrorAsync(ex, "MAIN_PAGE_LOAD", "MainPage");
-            loadingOverlay.IsVisible = false;
+            _logger.LogInformation("🌐 Blazor WebView initialized successfully");
+
+#if DEBUG
+            // Development ortamında web developer tools'u aç
+            if (DeviceInfo.Platform == DevicePlatform.WinUI)
+            {
+                e.WebView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+                e.WebView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = true;
+            }
+#endif
+        }
+
+        /// <summary>
+        /// URL yüklenirken çalışır
+        /// </summary>
+        private void OnUrlLoading(object? sender, Microsoft.AspNetCore.Components.WebView.UrlLoadingEventArgs e)
+        {
+            _logger.LogDebug("🔗 Loading URL: {Url}", e.Url);
+
+            // **EXTERNAL URL HANDLING**
+            if (e.Url.Scheme != "https" && e.Url.Scheme != "http")
+            {
+                e.UrlLoadingStrategy = Microsoft.AspNetCore.Components.WebView.UrlLoadingStrategy.OpenInWebView;
+            }
+        }
+
+        /// <summary>
+        /// Sayfa görünür hale geldiğinde çalışır
+        /// </summary>
+        protected override void OnAppearing()
+        {
+            base.OnAppearing();
+            _logger.LogDebug("MainPage appearing");
+        }
+
+        /// <summary>
+        /// Sayfa gizlendiğinde çalışır
+        /// </summary>
+        protected override void OnDisappearing()
+        {
+            base.OnDisappearing();
+            _logger.LogDebug("MainPage disappearing");
         }
     }
-
-    /// <summary>
-    /// Blazor WebView başlatıldığında çalışır
-    /// </summary>
-    private async void OnBlazorWebViewInitialized(object? sender, Microsoft.AspNetCore.Components.WebView.BlazorWebViewInitializedEventArgs e)
-    {
-        try
-        {
-            await _loggingService.LogAsync(
-                "BLAZOR_WEBVIEW_INITIALIZED",
-                "MainPage",
-                description: "Blazor WebView başlatıldı",
-                userId: _authService.CurrentUser?.Id);
-        }
-        catch (Exception ex)
-        {
-            await _loggingService.LogErrorAsync(ex, "BLAZOR_WEBVIEW_INIT", "MainPage");
-        }
-    }
-
-    /// <summary>
-    /// URL yüklenirken çalışır
-    /// </summary>
-    private void OnUrlLoading(object? sender, Microsoft.AspNetCore.Components.WebView.UrlLoadingEventArgs e)
-    {
-        // External URL'leri engelle (güvenlik için)
-        if (!e.Url.Host.Equals("0.0.0.0", StringComparison.OrdinalIgnoreCase) && 
-            !e.Url.Host.Equals("localhost", StringComparison.OrdinalIgnoreCase))
-        {
-            e.UrlLoadingStrategy = Microsoft.AspNetCore.Components.WebView.UrlLoadingStrategy.CancelLoad;
-        }
-    }
-}
-
 }
